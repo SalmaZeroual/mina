@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../models/message_model.dart';
 import '../../providers/messages_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/common/avatar_widget.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -29,7 +30,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_messageCtrl.text.trim().isEmpty) return;
     final content = _messageCtrl.text.trim();
     _messageCtrl.clear();
-    await context.read<MessagesProvider>().sendMessage(content);
+    await context.read<MessagesProvider>().sendMessage(widget.conversation.id, content);
     await Future.delayed(const Duration(milliseconds: 100));
     if (_scrollCtrl.hasClients) {
       _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
@@ -70,7 +71,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.all(16),
                   itemCount: mp.currentMessages.length,
-                  itemBuilder: (_, i) => _MessageBubble(message: mp.currentMessages[i]),
+                  itemBuilder: (_, i) => _MessageBubble(
+                    message: mp.currentMessages[i],
+                    currentUserId: context.read<AuthProvider>().currentUser?.id ?? '',
+                  ),
                 );
               },
             ),
@@ -113,9 +117,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class _MessageBubble extends StatelessWidget {
   final MessageModel message;
-  const _MessageBubble({required this.message});
+  final String currentUserId;
+  const _MessageBubble({required this.message, required this.currentUserId});
 
-  bool get isMe => message.senderId == 'user_1';
+  bool get isMe => message.senderId == currentUserId;
 
   @override
   Widget build(BuildContext context) {
