@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String apiBaseUrl = 'https://api.mina-app.com/v1';
+  static const String apiBaseUrl = 'http://localhost:3000/v1';
   static const String tokenKey = 'auth_token';
-  static const String userKey = 'current_user';
+  static const String userIdKey = 'user_id';
 }

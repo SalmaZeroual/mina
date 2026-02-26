@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/service_model.dart';
+import '../services/service_service.dart';
 
 class ServicesProvider extends ChangeNotifier {
+  final ServiceService _service = ServiceService();
   List<ServiceModel> _services = [];
   bool _isLoading = false;
   String _searchQuery = '';
@@ -14,8 +16,11 @@ class ServicesProvider extends ChangeNotifier {
   Future<void> loadServices() async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 500));
-    _services = ServiceModel.mocks;
+    try {
+      _services = await _service.getServices();
+    } catch (_) {
+      _services = [];
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -26,7 +31,13 @@ class ServicesProvider extends ChangeNotifier {
   }
 
   Future<void> publishService(Map<String, dynamic> data) async {
-    await Future.delayed(const Duration(seconds: 1));
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _service.createService(data);
+      await loadServices();
+    } catch (_) {}
+    _isLoading = false;
     notifyListeners();
   }
 }

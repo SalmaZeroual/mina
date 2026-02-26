@@ -44,7 +44,8 @@ class ServiceDetailScreen extends StatelessWidget {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(service.provider.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   Text(service.provider.title, style: const TextStyle(color: AppTheme.textSecondary)),
-                  Text(service.cell, style: const TextStyle(color: AppTheme.primary, fontSize: 12)),
+                  if (service.cell != null)
+                    Text(service.cell!, style: const TextStyle(color: AppTheme.primary, fontSize: 12)),
                 ]),
               ],
             ),

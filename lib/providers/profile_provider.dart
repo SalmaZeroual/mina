@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
+import '../services/user_service.dart';
+import '../services/post_service.dart';
 
 class ProfileProvider extends ChangeNotifier {
   UserModel? _user;
@@ -11,18 +13,24 @@ class ProfileProvider extends ChangeNotifier {
   List<PostModel> get userPosts => _userPosts;
   bool get isLoading => _isLoading;
 
-  Future<void> loadProfile() async {
+  Future<void> loadProfile(String userId) async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 500));
-    _user = UserModel.mock;
-    _userPosts = PostModel.mocks.take(3).toList();
+    try {
+      _user = await UserService().getProfile(userId);
+      _userPosts = await PostService().getUserPosts(userId);
+    } catch (_) {}
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> updateProfile(Map<String, dynamic> data) async {
-    await Future.delayed(const Duration(seconds: 1));
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _user = await UserService().updateProfile(data);
+    } catch (_) {}
+    _isLoading = false;
     notifyListeners();
   }
 }

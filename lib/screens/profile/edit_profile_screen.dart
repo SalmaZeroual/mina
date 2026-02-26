@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/profile_provider.dart';
-import '../../models/user_model.dart';
 import '../../widgets/common/mina_button.dart';
 import '../../widgets/common/avatar_widget.dart';
 
@@ -22,12 +21,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final user = context.read<ProfileProvider>().user ?? UserModel.mock;
-    _nameCtrl = TextEditingController(text: user.fullName);
-    _titleCtrl = TextEditingController(text: user.title);
-    _locationCtrl = TextEditingController(text: user.location ?? '');
-    _companyCtrl = TextEditingController(text: user.company ?? '');
-    _aboutCtrl = TextEditingController(text: user.about ?? '');
+    final user = context.read<ProfileProvider>().user;
+    _nameCtrl     = TextEditingController(text: user?.fullName ?? '');
+    _titleCtrl    = TextEditingController(text: user?.title ?? '');
+    _locationCtrl = TextEditingController(text: user?.location ?? '');
+    _companyCtrl  = TextEditingController(text: user?.company ?? '');
+    _aboutCtrl    = TextEditingController(text: user?.about ?? '');
   }
 
   @override
@@ -39,8 +38,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _save() async {
     await context.read<ProfileProvider>().updateProfile({
-      'full_name': _nameCtrl.text, 'title': _titleCtrl.text,
-      'location': _locationCtrl.text, 'company': _companyCtrl.text, 'about': _aboutCtrl.text,
+      'full_name': _nameCtrl.text,
+      'title': _titleCtrl.text,
+      'location': _locationCtrl.text,
+      'company': _companyCtrl.text,
+      'about': _aboutCtrl.text,
     });
     if (mounted) {
       Navigator.pop(context);
@@ -50,7 +52,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.read<ProfileProvider>().user ?? UserModel.mock;
+    final initials = context.watch<ProfileProvider>().user?.initials ?? '?';
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
@@ -63,7 +65,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Center(
               child: Stack(
                 children: [
-                  AvatarWidget(initials: user.initials, size: 80),
+                  AvatarWidget(initials: initials, size: 80),
                   Positioned(
                     right: 0, bottom: 0,
                     child: Container(

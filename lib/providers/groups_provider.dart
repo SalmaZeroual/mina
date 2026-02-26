@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/group_model.dart';
+import '../services/group_service.dart';
 
 class GroupsProvider extends ChangeNotifier {
+  final GroupService _service = GroupService();
   List<GroupModel> _groups = [];
   bool _isLoading = false;
   String _searchQuery = '';
@@ -14,8 +16,11 @@ class GroupsProvider extends ChangeNotifier {
   Future<void> loadGroups() async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 500));
-    _groups = GroupModel.mocks;
+    try {
+      _groups = await _service.getGroups();
+    } catch (_) {
+      _groups = [];
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -26,7 +31,9 @@ class GroupsProvider extends ChangeNotifier {
   }
 
   Future<void> joinGroup(String groupId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    notifyListeners();
+    try {
+      await _service.joinGroup(groupId);
+      await loadGroups();
+    } catch (_) {}
   }
 }

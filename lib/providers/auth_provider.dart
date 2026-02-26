@@ -22,10 +22,10 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      await _authService.login(email, password);
-      _currentUser = UserModel.mock;
+      final data = await _authService.login(email, password);
+      _currentUser = UserModel.fromJson(data['user']);
+      _cellSelected = _currentUser?.cellId.isNotEmpty ?? false;
       _status = AuthStatus.authenticated;
-      _cellSelected = true;
       notifyListeners();
       return true;
     } catch (e) {
@@ -41,10 +41,10 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      await _authService.register(fullName, email, password);
-      _currentUser = UserModel.mock;
-      _status = AuthStatus.authenticated;
+      final data = await _authService.register(fullName, email, password);
+      _currentUser = UserModel.fromJson(data['user']);
       _cellSelected = false;
+      _status = AuthStatus.authenticated;
       notifyListeners();
       return true;
     } catch (e) {

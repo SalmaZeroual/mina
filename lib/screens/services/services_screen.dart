@@ -99,7 +99,8 @@ class _ServiceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(service.provider.fullName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                    Text(service.cell, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                    if (service.cell != null)
+                      Text(service.cell!, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
                   ],
                 ),
               ],
