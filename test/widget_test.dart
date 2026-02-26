@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Pour ProviderScope
-import 'package:mina/app.dart'; // Importez le fichier où se trouve MinaApp
+import 'package:mina/main.dart'; // Importez le fichier où se trouve MinaApp
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
