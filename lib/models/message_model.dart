@@ -4,6 +4,7 @@ class ConversationModel {
   final String lastMessage;
   final DateTime lastMessageAt;
   final int unreadCount;
+  final bool isTyping;
 
   ConversationModel({
     required this.id,
@@ -11,13 +12,17 @@ class ConversationModel {
     required this.lastMessage,
     required this.lastMessageAt,
     this.unreadCount = 0,
+    this.isTyping = false,
   });
 
   String get timeAgo {
     final diff = DateTime.now().difference(lastMessageAt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return 'Yesterday';
+    if (diff.inSeconds < 60) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${lastMessageAt.day}/${lastMessageAt.month}';
   }
 
   factory ConversationModel.fromJson(Map<String, dynamic> json) {
@@ -37,6 +42,7 @@ class ParticipantModel {
   final String initials;
   final String? avatarUrl;
   final String title;
+  final String? cell;
   final bool isOnline;
 
   ParticipantModel({
@@ -45,6 +51,7 @@ class ParticipantModel {
     required this.initials,
     this.avatarUrl,
     this.title = '',
+    this.cell,
     this.isOnline = false,
   });
 
@@ -55,6 +62,7 @@ class ParticipantModel {
       initials: json['initials'] ?? '',
       avatarUrl: json['avatar_url'],
       title: json['title'] ?? '',
+      cell: json['cell'],
       isOnline: json['is_online'] ?? false,
     );
   }
@@ -63,25 +71,41 @@ class ParticipantModel {
 class MessageModel {
   final String id;
   final String senderId;
+  final String senderName;
   final String content;
   final DateTime sentAt;
   final bool isRead;
+  final MessageType type;
 
   MessageModel({
     required this.id,
     required this.senderId,
+    this.senderName = '',
     required this.content,
     required this.sentAt,
     this.isRead = false,
+    this.type = MessageType.text,
   });
+
+  String get timeLabel {
+    final now = DateTime.now();
+    final diff = now.difference(sentAt);
+    if (diff.inDays == 0) {
+      return '${sentAt.hour.toString().padLeft(2, '0')}:${sentAt.minute.toString().padLeft(2, '0')}';
+    }
+    return '${sentAt.day}/${sentAt.month}';
+  }
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
       id: json['id'],
       senderId: json['sender']?['id'] ?? '',
+      senderName: json['sender']?['full_name'] ?? '',
       content: json['content'],
       sentAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       isRead: json['is_read'] ?? false,
     );
   }
 }
+
+enum MessageType { text, image, file }

@@ -64,3 +64,49 @@ class ServiceModel {
     );
   }
 }
+
+class ReviewerModel {
+  final String id;
+  final String fullName;
+  final String initials;
+  final String? avatarUrl;
+
+  ReviewerModel({required this.id, required this.fullName, required this.initials, this.avatarUrl});
+
+  factory ReviewerModel.fromJson(Map<String, dynamic> json) {
+    final name = json['full_name'] ?? '';
+    final parts = name.trim().split(' ');
+    final initials = parts.length >= 2
+        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+        : name.substring(0, name.length.clamp(0, 2)).toUpperCase();
+    return ReviewerModel(
+      id: json['id'] ?? '',
+      fullName: name,
+      initials: json['initials'] ?? initials,
+      avatarUrl: json['avatar_url'],
+    );
+  }
+}
+
+class ServiceReviewModel {
+  final String id;
+  final int rating;
+  final String? comment;
+  final ReviewerModel reviewer;
+  final DateTime createdAt;
+
+  ServiceReviewModel({
+    required this.id, required this.rating, this.comment,
+    required this.reviewer, required this.createdAt,
+  });
+
+  factory ServiceReviewModel.fromJson(Map<String, dynamic> json) {
+    return ServiceReviewModel(
+      id: json['id'],
+      rating: json['rating'],
+      comment: json['comment'],
+      reviewer: ReviewerModel.fromJson(json['reviewer']),
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+    );
+  }
+}

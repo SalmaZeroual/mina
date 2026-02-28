@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/messages_provider.dart';
+import '../../models/message_model.dart';
 import '../../widgets/common/bottom_nav_bar.dart';
 import '../../widgets/common/loading_widget.dart';
-import '../../widgets/common/search_bar_widget.dart';
 import '../../widgets/common/avatar_widget.dart';
 import '../../config/routes.dart';
 
@@ -14,7 +14,10 @@ class MessagesScreen extends StatefulWidget {
   State<MessagesScreen> createState() => _MessagesScreenState();
 }
 
-class _MessagesScreenState extends State<MessagesScreen> {
+class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProviderStateMixin {
+  final _searchCtrl = TextEditingController();
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
@@ -22,74 +25,435 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   @override
+  void dispose() { _searchCtrl.dispose(); super.dispose(); }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      backgroundColor: const Color(0xFFF5F6FA),
+      appBar: _buildAppBar(),
       body: Consumer<MessagesProvider>(
         builder: (_, mp, __) {
-          if (mp.isLoading) return const LoadingWidget();
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: SearchBarWidget(hint: 'Search conversations...', onChanged: (_) {}),
+          if (mp.isLoading && mp.conversations.isEmpty) return const LoadingWidget();
+          final convs = mp.conversations;
+
+          return Column(children: [
+            // Search bar (always visible)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              color: Colors.white,
+              child: _SearchBar(
+                controller: _searchCtrl,
+                onChanged: (v) {
+                  mp.search(v);
+                  setState(() => _isSearching = v.isNotEmpty);
+                },
+                onClear: () {
+                  _searchCtrl.clear();
+                  mp.search('');
+                  setState(() => _isSearching = false);
+                },
               ),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: mp.conversations.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 76),
-                  itemBuilder: (_, i) {
-                    final conv = mp.conversations[i];
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      leading: Stack(
-                        children: [
-                          AvatarWidget(initials: conv.participant.initials),
-                          if (conv.participant.isOnline)
-                            Positioned(
-                              right: 0, bottom: 0,
-                              child: Container(
-                                width: 12, height: 12,
-                                decoration: BoxDecoration(color: AppTheme.success, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                              ),
-                            ),
-                        ],
+            ),
+
+            Expanded(
+              child: convs.isEmpty
+                  ? _EmptyState(isSearching: _isSearching, query: _searchCtrl.text)
+                  : RefreshIndicator(
+                      onRefresh: mp.loadConversations,
+                      color: AppTheme.primary,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(top: 8, bottom: 80),
+                        itemCount: convs.length,
+                        itemBuilder: (_, i) => _ConversationTile(
+                          conversation: convs[i],
+                          onDelete: () => _confirmDelete(context, mp, convs[i]),
+                        ),
                       ),
-                      title: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(conv.participant.fullName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                          Text(conv.timeAgo, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                        ],
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(conv.participant.title, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(child: Text(conv.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary))),
-                              if (conv.unreadCount > 0)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: AppTheme.primary, borderRadius: BorderRadius.circular(10)),
-                                  child: Text('${conv.unreadCount}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.chat, arguments: conv),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
+                    ),
+            ),
+          ]);
         },
       ),
       bottomNavigationBar: const BottomNavBar(currentIndex: 1),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      title: const Text('Messages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+      actions: [
+        Consumer<MessagesProvider>(
+          builder: (_, mp, __) => mp.totalUnread > 0
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Text('${mp.totalUnread} unread',
+                          style: const TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        IconButton(
+          icon: const Icon(Icons.edit_outlined, color: AppTheme.textPrimary),
+          tooltip: 'New Message',
+          onPressed: () => _showNewMessageSheet(context),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDelete(BuildContext context, MessagesProvider mp, ConversationModel conv) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          AvatarWidget(initials: conv.participant.initials, size: 56, avatarUrl: conv.participant.avatarUrl),
+          const SizedBox(height: 12),
+          Text('Delete conversation with', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+          Text(conv.participant.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 6),
+          const Text('This will permanently remove all messages.\nThis action cannot be undone.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.4)),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Cancel'),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                mp.deleteConversation(conv.id);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Conversation with ${conv.participant.fullName} deleted'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  action: SnackBarAction(label: 'Undo', onPressed: () => mp.loadConversations(), textColor: Colors.white),
+                ));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Delete'),
+            )),
+          ]),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
+  void _showNewMessageSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _NewMessageSheet(),
+    );
+  }
+}
+
+// ─── Conversation Tile ───────────────────────────────────────────────────────
+class _ConversationTile extends StatelessWidget {
+  final ConversationModel conversation;
+  final VoidCallback onDelete;
+  const _ConversationTile({required this.conversation, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final conv = conversation;
+    final hasUnread = conv.unreadCount > 0;
+
+    return Dismissible(
+      key: Key(conv.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        onDelete();
+        return false; // we handle it manually
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.red.withOpacity(0.1),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [
+          Icon(Icons.delete_outline, color: Colors.red, size: 26),
+          SizedBox(height: 4),
+          Text('Delete', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+      child: GestureDetector(
+        onLongPress: onDelete,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+          decoration: BoxDecoration(
+            color: hasUnread ? Colors.white : Colors.white.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: hasUnread
+                ? [BoxShadow(color: AppTheme.primary.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2))]
+                : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 1))],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => Navigator.pushNamed(context, AppRoutes.chat, arguments: conv),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(children: [
+                  // Avatar with online dot
+                  Stack(children: [
+                    AvatarWidget(initials: conv.participant.initials, size: 50, avatarUrl: conv.participant.avatarUrl),
+                    if (conv.participant.isOnline)
+                      Positioned(right: 1, bottom: 1, child: Container(
+                        width: 13, height: 13,
+                        decoration: BoxDecoration(color: AppTheme.success, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                      )),
+                  ]),
+                  const SizedBox(width: 13),
+
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(
+                        conv.participant.fullName,
+                        style: TextStyle(
+                          fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
+                          fontSize: 15, color: AppTheme.textPrimary,
+                        ),
+                      )),
+                      Text(conv.timeAgo, style: TextStyle(
+                        fontSize: 12,
+                        color: hasUnread ? AppTheme.primary : AppTheme.textSecondary,
+                        fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                      )),
+                    ]),
+                    const SizedBox(height: 3),
+                    if (conv.participant.title.isNotEmpty)
+                      Text(conv.participant.title,
+                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      Expanded(child: conv.isTyping
+                          ? Row(children: [
+                              const Text('typing', style: TextStyle(color: AppTheme.primary, fontSize: 13, fontStyle: FontStyle.italic)),
+                              const SizedBox(width: 4),
+                              _TypingDots(),
+                            ])
+                          : Text(conv.lastMessage,
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: hasUnread ? AppTheme.textPrimary : AppTheme.textSecondary,
+                                fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
+                              )),
+                      ),
+                      if (hasUnread)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(color: AppTheme.primary, borderRadius: BorderRadius.circular(10)),
+                          child: Text('${conv.unreadCount}',
+                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                    ]),
+                  ])),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Typing animation ────────────────────────────────────────────────────────
+class _TypingDots extends StatefulWidget {
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Row(children: List.generate(3, (i) {
+        final opacity = ((_ctrl.value * 3 - i) % 1.0).clamp(0.2, 1.0);
+        return Container(
+          margin: const EdgeInsets.only(right: 3),
+          width: 4, height: 4,
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withOpacity(opacity),
+            shape: BoxShape.circle,
+          ),
+        );
+      })),
+    );
+  }
+}
+
+// ─── Search Bar ──────────────────────────────────────────────────────────────
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+  const _SearchBar({required this.controller, required this.onChanged, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(color: const Color(0xFFF0F1F5), borderRadius: BorderRadius.circular(12)),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'Search messages or people...',
+          hintStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          prefixIcon: const Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(icon: const Icon(Icons.close, size: 16), onPressed: onClear)
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────────────
+class _EmptyState extends StatelessWidget {
+  final bool isSearching;
+  final String query;
+  const _EmptyState({required this.isSearching, required this.query});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(isSearching ? '🔍' : '💬', style: const TextStyle(fontSize: 60)),
+          const SizedBox(height: 20),
+          Text(
+            isSearching ? 'No results for "$query"' : 'No conversations yet',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isSearching
+                ? 'Try a different name or keyword'
+                : 'Connect with professionals in your cell.\nStart a conversation from someone\'s profile.',
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14, height: 1.5),
+            textAlign: TextAlign.center,
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── New Message Sheet ───────────────────────────────────────────────────────
+class _NewMessageSheet extends StatefulWidget {
+  const _NewMessageSheet();
+  @override
+  State<_NewMessageSheet> createState() => _NewMessageSheetState();
+}
+
+class _NewMessageSheetState extends State<_NewMessageSheet> {
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() { _searchCtrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(children: [
+        const SizedBox(height: 12),
+        Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Row(children: [
+            Text('New Message', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(color: const Color(0xFFF0F1F5), borderRadius: BorderRadius.circular(12)),
+            child: TextField(
+              controller: _searchCtrl,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Search by name or cell...',
+                prefixIcon: Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _searchCtrl.text.isEmpty
+              ? const Center(
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text('🌍', style: TextStyle(fontSize: 48)),
+                    SizedBox(height: 12),
+                    Text('Search for a professional\nto start a conversation',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14, height: 1.5)),
+                  ]),
+                )
+              : const Center(
+                  child: Text('Search results will appear here',
+                      style: TextStyle(color: AppTheme.textSecondary)),
+                ),
+        ),
+      ]),
     );
   }
 }
