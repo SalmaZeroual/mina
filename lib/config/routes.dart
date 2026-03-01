@@ -13,25 +13,29 @@ import '../screens/services/publish_service_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/home/create_post_screen.dart';
+import '../screens/notifications_screen.dart';
+import '../screens/search_screen.dart';
 import '../models/message_model.dart';
 import '../models/group_model.dart';
 import '../models/service_model.dart';
 
 class AppRoutes {
-  static const String login = '/login';
-  static const String register = '/register';
-  static const String selectCell = '/select-cell';
-  static const String home = '/home';
-  static const String messages = '/messages';
-  static const String chat = '/chat';
-  static const String groups = '/groups';
-  static const String groupDetail = '/group-detail';
-  static const String services = '/services';
-  static const String serviceDetail = '/service-detail';
-  static const String publishService = '/publish-service';
-  static const String profile = '/profile';
-  static const String editProfile = '/edit-profile';
-  static const String createPost = '/create-post';
+  static const String login           = '/login';
+  static const String register        = '/register';
+  static const String selectCell      = '/select-cell';
+  static const String home            = '/home';
+  static const String messages        = '/messages';
+  static const String chat            = '/chat';
+  static const String groups          = '/groups';
+  static const String groupDetail     = '/group-detail';
+  static const String services        = '/services';
+  static const String serviceDetail   = '/service-detail';
+  static const String publishService  = '/publish-service';
+  static const String profile         = '/profile';
+  static const String editProfile     = '/edit-profile';
+  static const String createPost      = '/create-post';
+  static const String notifications   = '/notifications';
+  static const String search          = '/search';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -66,6 +70,10 @@ class AppRoutes {
         return _route(const EditProfileScreen());
       case createPost:
         return _route(const CreatePostScreen());
+      case notifications:
+        return _route(const NotificationsScreen());
+      case search:
+        return _route(const SearchScreen());
       default:
         return _route(const LoginScreen());
     }
