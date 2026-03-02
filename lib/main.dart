@@ -7,6 +7,7 @@ import 'providers/messages_provider.dart';
 import 'providers/groups_provider.dart';
 import 'providers/services_provider.dart';
 import 'providers/profile_provider.dart';
+import 'providers/notifications_provider.dart';
 import 'config/routes.dart';
 
 void main() {
@@ -26,6 +27,7 @@ class MinaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GroupsProvider()),
         ChangeNotifierProvider(create: (_) => ServicesProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
       ],
       child: MaterialApp(
         title: 'Mina',

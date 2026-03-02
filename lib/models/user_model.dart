@@ -36,29 +36,31 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final fullName = (json['full_name'] as String?) ?? (json['name'] as String?) ?? '';
     return UserModel(
-      id: json['id'],
-      fullName: json['full_name'],
-      email: json['email'],
-      avatarUrl: json['avatar_url'],
-      initials: json['initials'] ?? _getInitials(json['full_name']),
-      cellId: json['cell_id'] ?? '',
-      cell: json['cell'] ?? '',
-      title: json['title'] ?? '',
-      location: json['location'],
-      company: json['company'],
-      about: json['about'],
-      postsCount: json['posts_count'] ?? 0,
-      followersCount: json['followers_count'] ?? 0,
-      followingCount: json['following_count'] ?? 0,
-      joinedAt: DateTime.tryParse(json['joined_at'] ?? json['created_at'] ?? '') ?? DateTime.now(),
-      isOnline: json['is_online'] ?? false,
+      id:             (json['id']          as String?) ?? '',
+      fullName:       fullName,
+      email:          (json['email']       as String?) ?? '',
+      avatarUrl:       json['avatar_url']  as String?,
+      initials:       (json['initials']    as String?) ?? (fullName.isNotEmpty ? _getInitials(fullName) : '?'),
+      cellId:         (json['cell_id']     as String?) ?? '',
+      cell:           (json['cell']        as String?) ?? (json['cell_name'] as String?) ?? '',
+      title:          (json['title']       as String?) ?? '',
+      location:        json['location']    as String?,
+      company:         json['company']     as String?,
+      about:           json['about']       as String?,
+      postsCount:     (json['posts_count']     as int?) ?? 0,
+      followersCount: (json['followers_count'] as int?) ?? 0,
+      followingCount: (json['following_count'] as int?) ?? 0,
+      joinedAt:       DateTime.tryParse((json['joined_at'] as String?) ?? (json['created_at'] as String?) ?? '') ?? DateTime.now(),
+      isOnline:       json['is_online'] == true || json['is_online'] == 1,
     );
   }
 
   static String _getInitials(String name) {
     final parts = name.trim().split(' ');
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    return name.substring(0, 2).toUpperCase();
+    if (name.length >= 2) return name.substring(0, 2).toUpperCase();
+    return name.toUpperCase();
   }
 }
