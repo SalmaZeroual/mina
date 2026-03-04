@@ -12,14 +12,23 @@ class ServiceService {
     return (data['data'] as List).map((j) => ServiceModel.fromJson(j)).toList();
   }
 
+  Future<List<ServiceModel>> getMyServices() async {
+    final data = await ApiService.get('/services/mine');
+    return (data['data'] as List).map((j) => ServiceModel.fromJson(j)).toList();
+  }
+
   Future<ServiceModel> createService(Map<String, dynamic> body) async {
     final data = await ApiService.post('/services', body);
     return ServiceModel.fromJson(data['data']);
   }
 
-  Future<List<ServiceModel>> getMyServices() async {
-    final data = await ApiService.get('/services/mine');
-    return (data['data'] as List).map((j) => ServiceModel.fromJson(j)).toList();
+  Future<ServiceModel> updateService(String serviceId, Map<String, dynamic> body) async {
+    final data = await ApiService.put('/services/$serviceId', body);
+    return ServiceModel.fromJson(data['data']);
+  }
+
+  Future<void> deleteService(String serviceId) async {
+    await ApiService.delete('/services/$serviceId');
   }
 
   Future<List<ServiceReviewModel>> getReviews(String serviceId) async {

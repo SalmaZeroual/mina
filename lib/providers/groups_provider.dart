@@ -12,65 +12,57 @@ class GroupsProvider extends ChangeNotifier {
 
   List<GroupModel> get groups => _searchQuery.isEmpty
       ? _groups
-      : _groups.where((g) => g.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+      : _groups.where((g) =>
+          g.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (g.description.toLowerCase().contains(_searchQuery.toLowerCase()))).toList();
   bool get isLoading => _isLoading;
   bool get isCreating => _isCreating;
   String? get error => _error;
 
   Future<void> loadGroups() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _isLoading = true; _error = null; notifyListeners();
     try {
       _groups = await _service.getGroups();
     } catch (e) {
-      _error = e.toString();
-      _groups = [];
+      _error = e.toString(); _groups = [];
     }
-    _isLoading = false;
-    notifyListeners();
+    _isLoading = false; notifyListeners();
   }
 
-  void search(String query) {
-    _searchQuery = query;
-    notifyListeners();
-  }
+  void search(String query) { _searchQuery = query; notifyListeners(); }
 
   Future<GroupModel?> createGroup({
     required String name,
     String? description,
     bool requiresApproval = true,
+    bool isFree = true,
+    double price = 0,
+    bool showMembersCount = true,
   }) async {
-    _isCreating = true;
-    _error = null;
-    notifyListeners();
+    _isCreating = true; _error = null; notifyListeners();
     try {
       final group = await _service.createGroup(
-        name: name,
-        description: description,
+        name: name, description: description,
         requiresApproval: requiresApproval,
+        isFree: isFree, price: price,
+        showMembersCount: showMembersCount,
       );
       _groups.insert(0, group);
-      _isCreating = false;
-      notifyListeners();
+      _isCreating = false; notifyListeners();
       return group;
     } catch (e) {
-      _error = e.toString();
-      _isCreating = false;
-      notifyListeners();
+      _error = e.toString(); _isCreating = false; notifyListeners();
       return null;
     }
   }
 
-  // Returns the full response data so caller can check status ('pending' vs 'active')
   Future<Map<String, dynamic>?> joinGroup(String groupId) async {
     try {
       final result = await _service.joinGroup(groupId);
-      await loadGroups(); // refresh list
+      await loadGroups();
       return result;
     } catch (e) {
-      _error = e.toString();
-      notifyListeners();
+      _error = e.toString(); notifyListeners();
       return null;
     }
   }
@@ -80,8 +72,7 @@ class GroupsProvider extends ChangeNotifier {
       await _service.leaveGroup(groupId);
       await loadGroups();
     } catch (e) {
-      _error = e.toString();
-      notifyListeners();
+      _error = e.toString(); notifyListeners();
     }
   }
 }

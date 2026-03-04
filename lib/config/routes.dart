@@ -16,7 +16,6 @@ import '../screens/home/create_post_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/search_screen.dart';
 import '../models/message_model.dart';
-import '../models/group_model.dart';
 import '../models/service_model.dart';
 
 class AppRoutes {
@@ -55,8 +54,9 @@ class AppRoutes {
       case groups:
         return _route(const GroupsScreen());
       case groupDetail:
-        final group = settings.arguments as GroupModel;
-        return _route(GroupDetailScreen(group: group));
+        // arguments are passed as the group's ID string (see where Navigator.pushNamed is called).
+        final groupId = settings.arguments as String;
+        return _route(GroupDetailScreen(groupId: groupId));
       case services:
         return _route(const ServicesScreen());
       case serviceDetail:

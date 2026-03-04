@@ -5,8 +5,6 @@ import '../services/search_service.dart';
 import '../widgets/common/avatar_widget.dart';
 import '../widgets/home/post_card.dart';
 import '../providers/home_provider.dart';
-import '../config/routes.dart';
-import '../models/group_model.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});

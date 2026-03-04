@@ -1,5 +1,4 @@
 import 'api_service.dart';
-import '../models/user_model.dart';
 import '../models/post_model.dart';
 
 class SearchResult {

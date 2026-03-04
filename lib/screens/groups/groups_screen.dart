@@ -28,10 +28,7 @@ class _GroupsScreenState extends State<GroupsScreen>
   }
 
   @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
+  void dispose() { _tabs.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -76,8 +73,7 @@ class _GroupsScreenState extends State<GroupsScreen>
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add, color: Colors.white, size: 20),
         label: const Text('New Community',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         elevation: 4,
       ),
       body: Consumer<GroupsProvider>(
@@ -99,7 +95,6 @@ class _GroupsScreenState extends State<GroupsScreen>
   }
 }
 
-// ── Group list ────────────────────────────────────────────────────────────────
 class _GroupList extends StatelessWidget {
   final List<GroupModel> groups;
   final bool showJoined;
@@ -110,22 +105,15 @@ class _GroupList extends StatelessWidget {
     if (groups.isEmpty) {
       return Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(
-              showJoined ? Icons.group_outlined : Icons.explore_outlined,
-              size: 64,
-              color: AppTheme.textSecondary.withOpacity(0.4)),
+          Icon(showJoined ? Icons.group_outlined : Icons.explore_outlined,
+              size: 64, color: AppTheme.textSecondary.withOpacity(0.4)),
           const SizedBox(height: 16),
-          Text(
-              showJoined
-                  ? 'You haven\'t joined any group yet'
-                  : 'No communities found',
-              style: const TextStyle(
-                  color: AppTheme.textSecondary, fontSize: 16)),
+          Text(showJoined ? 'You haven\'t joined any group yet' : 'No communities found',
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
           if (!showJoined) ...[
             const SizedBox(height: 8),
             const Text('Tap the button below to create one!',
-                style: TextStyle(
-                    color: AppTheme.textSecondary, fontSize: 13)),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
           ],
         ]),
       );
@@ -138,7 +126,6 @@ class _GroupList extends StatelessWidget {
   }
 }
 
-// ── Group card ────────────────────────────────────────────────────────────────
 class _GroupCard extends StatelessWidget {
   final GroupModel group;
   const _GroupCard({required this.group});
@@ -146,141 +133,111 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.groupDetail,
-          arguments: group.id),
+      onTap: () => Navigator.pushNamed(context, AppRoutes.groupDetail, arguments: group.id),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2))
-          ],
+          color: Colors.white, borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(
+              color: Colors.black.withOpacity(0.04), blurRadius: 10,
+              offset: const Offset(0, 2))],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Bannière colorée
+          // Banner
           Container(
             height: 72,
             decoration: BoxDecoration(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               gradient: LinearGradient(
-                colors: [
-                  _cellColor(group.cell).withOpacity(0.85),
-                  _cellColor(group.cell)
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                colors: [_cellColor(group.cell).withOpacity(0.85), _cellColor(group.cell)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
               ),
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 44, height: 44,
                 decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12)),
-                child: Center(
-                    child: Text(_groupEmoji(group.name),
-                        style: const TextStyle(fontSize: 20))),
+                child: Center(child: Text(_groupEmoji(group.name),
+                    style: const TextStyle(fontSize: 20))),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(group.name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15)),
-                      if (group.cell != null)
-                        Text(group.cell!,
-                            style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 12)),
-                    ]),
-              ),
+              Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(group.name, style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    if (group.cell != null)
+                      Text(group.cell!, style: TextStyle(
+                          color: Colors.white.withOpacity(0.8), fontSize: 12)),
+                  ])),
+              if (!group.isFree)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: Colors.amber.shade200,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text('\$${group.price.toInt()}/mo',
+                      style: const TextStyle(
+                          color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 11)),
+                ),
               if (group.isMember)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20)),
-                  child: const Text('Member',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
+                  child: const Text('Member', style: TextStyle(
+                      color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
               if (group.isPending)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                       color: Colors.orange.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(20)),
-                  child: const Text('Pending',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
+                  child: const Text('Pending', style: TextStyle(
+                      color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
             ]),
           ),
           Padding(
             padding: const EdgeInsets.all(14),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(group.description,
-                      style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          height: 1.4),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 10),
-                  Wrap(spacing: 8, children: [
-                    if (group.isFree)
-                      _Chip(
-                          label: 'Free',
-                          color: const Color(0xFF10B981),
-                          bgColor: const Color(0xFFECFDF5))
-                    else
-                      _Chip(
-                          label: '\$${group.price!.toInt()}/month',
-                          color: const Color(0xFF047857),
-                          bgColor: const Color(0xFFECFDF5),
-                          icon: Icons.attach_money),
-                    if (group.requiresApproval)
-                      _Chip(
-                          label: 'Approval Required',
-                          color: const Color(0xFFB45309),
-                          bgColor: const Color(0xFFFEF3C7),
-                          icon: Icons.lock_outline),
-                  ]),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    const Icon(Icons.people_outline,
-                        size: 14, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
-                    Text('${_formatCount(group.membersCount)} members',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary)),
-                    const Spacer(),
-                    if (!group.isMember && !group.isPending)
-                      _JoinButton(group: group),
-                  ]),
-                ]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(group.description,
+                  style: const TextStyle(
+                      color: AppTheme.textSecondary, fontSize: 13, height: 1.4),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, children: [
+                if (group.isFree)
+                  _Chip(label: 'Free', color: const Color(0xFF10B981),
+                      bgColor: const Color(0xFFECFDF5))
+                else
+                  _Chip(label: '\$${group.price.toInt()}/mo',
+                      color: const Color(0xFF047857), bgColor: const Color(0xFFECFDF5),
+                      icon: Icons.attach_money),
+                if (group.requiresApproval)
+                  _Chip(label: 'Approval Required', color: const Color(0xFFB45309),
+                      bgColor: const Color(0xFFFEF3C7), icon: Icons.lock_outline),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                const Icon(Icons.people_outline, size: 14, color: AppTheme.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  group.showMembersCount
+                      ? '${_fmt(group.membersCount)} members'
+                      : 'Members hidden',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                ),
+                const Spacer(),
+                if (!group.isMember && !group.isPending) _JoinButton(group: group),
+              ]),
+            ]),
           ),
         ]),
       ),
@@ -289,75 +246,44 @@ class _GroupCard extends StatelessWidget {
 
   Color _cellColor(String? cell) {
     const colors = {
-      'Web Development': Color(0xFF6366F1),
-      'Design': Color(0xFFEC4899),
-      'Medicine': Color(0xFF14B8A6),
-      'Business': Color(0xFFF59E0B),
-      'Marketing': Color(0xFF8B5CF6),
-      'Engineering': Color(0xFF3B82F6),
-      'Finance': Color(0xFF10B981),
-      'Legal': Color(0xFF64748B),
-      'Education': Color(0xFFEF4444),
-      'Photography': Color(0xFFF97316),
-      'Real Estate': Color(0xFF84CC16),
-      'Fitness & Sports': Color(0xFF06B6D4),
+      'Web Development': Color(0xFF6366F1), 'Design': Color(0xFFEC4899),
+      'Medicine': Color(0xFF14B8A6),        'Business': Color(0xFFF59E0B),
+      'Marketing': Color(0xFF8B5CF6),       'Engineering': Color(0xFF3B82F6),
+      'Finance': Color(0xFF10B981),         'Legal': Color(0xFF64748B),
+      'Education': Color(0xFFEF4444),       'Photography': Color(0xFFF97316),
     };
     return colors[cell] ?? AppTheme.primary;
   }
 
   String _groupEmoji(String name) {
     final n = name.toLowerCase();
-    if (n.contains('react') || n.contains('flutter') || n.contains('dev'))
-      return '💻';
-    if (n.contains('design') || n.contains('ui') || n.contains('ux'))
-      return '🎨';
+    if (n.contains('flutter') || n.contains('dev') || n.contains('code')) return '💻';
+    if (n.contains('design') || n.contains('ui')) return '🎨';
     if (n.contains('startup') || n.contains('business')) return '🚀';
     if (n.contains('freelance')) return '💼';
-    if (n.contains('backend') || n.contains('api')) return '⚙️';
-    if (n.contains('data') || n.contains('ai') || n.contains('ml'))
-      return '🤖';
-    if (n.contains('mobile')) return '📱';
+    if (n.contains('data') || n.contains('ai')) return '🤖';
     if (n.contains('health') || n.contains('medic')) return '🏥';
-    if (n.contains('finance') || n.contains('invest')) return '📈';
+    if (n.contains('finance')) return '📈';
     return '🌐';
   }
 
-  String _formatCount(int n) =>
-      n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
+  String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}k' : '$n';
 }
 
-// ── Chip ──────────────────────────────────────────────────────────────────────
 class _Chip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final Color bgColor;
-  final IconData? icon;
-  const _Chip(
-      {required this.label,
-      required this.color,
-      required this.bgColor,
-      this.icon});
-
+  final String label; final Color color, bgColor; final IconData? icon;
+  const _Chip({required this.label, required this.color, required this.bgColor, this.icon});
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-          color: bgColor, borderRadius: BorderRadius.circular(20)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (icon != null) ...[
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4)
-        ],
-        Text(label,
-            style: TextStyle(
-                color: color, fontSize: 12, fontWeight: FontWeight.w500)),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(20)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      if (icon != null) ...[Icon(icon, size: 12, color: color), const SizedBox(width: 4)],
+      Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500)),
+    ]),
+  );
 }
 
-// ── Join button ───────────────────────────────────────────────────────────────
 class _JoinButton extends StatefulWidget {
   final GroupModel group;
   const _JoinButton({required this.group});
@@ -370,50 +296,36 @@ class _JoinButtonState extends State<_JoinButton> {
 
   Future<void> _join() async {
     setState(() => _loading = true);
-    final result =
-        await context.read<GroupsProvider>().joinGroup(widget.group.id);
+    final result = await context.read<GroupsProvider>().joinGroup(widget.group.id);
     if (!mounted) return;
     setState(() => _loading = false);
     if (result != null) {
       final status = result['data']?['status'];
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(status == 'pending'
-            ? '📬 Request sent! The admin will review it.'
-            : '🎉 Welcome to ${widget.group.name}!'),
-        backgroundColor:
-            status == 'pending' ? Colors.orange : AppTheme.success,
+            ? '📬 Request sent!' : '🎉 Welcome to ${widget.group.name}!'),
+        backgroundColor: status == 'pending' ? Colors.orange : AppTheme.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _loading ? null : _join,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        decoration: BoxDecoration(
-            color: AppTheme.primary,
-            borderRadius: BorderRadius.circular(20)),
-        child: _loading
-            ? const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2))
-            : Text(
-                widget.group.requiresApproval ? 'Request' : 'Join',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: _loading ? null : _join,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      decoration: BoxDecoration(
+          color: AppTheme.primary, borderRadius: BorderRadius.circular(20)),
+      child: _loading
+          ? const SizedBox(width: 14, height: 14,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : Text(widget.group.requiresApproval ? 'Request' : 'Join',
+              style: const TextStyle(color: Colors.white, fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+    ),
+  );
 }
 
 // ── Create group sheet ────────────────────────────────────────────────────────
@@ -425,15 +337,17 @@ class _CreateGroupSheet extends StatefulWidget {
 }
 
 class _CreateGroupSheetState extends State<_CreateGroupSheet> {
-  final _nameCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  bool _requiresApproval = true;
-  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl  = TextEditingController();
+  final _descCtrl  = TextEditingController();
+  final _priceCtrl = TextEditingController(text: '0');
+  final _formKey   = GlobalKey<FormState>();
+  bool _requiresApproval  = true;
+  bool _showMembersCount  = true;
+  bool _isFree            = true;
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _descCtrl.dispose();
+    _nameCtrl.dispose(); _descCtrl.dispose(); _priceCtrl.dispose();
     super.dispose();
   }
 
@@ -442,16 +356,15 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
     HapticFeedback.mediumImpact();
 
     final group = await context.read<GroupsProvider>().createGroup(
-          name: _nameCtrl.text.trim(),
-          description: _descCtrl.text.trim().isEmpty
-              ? null
-              : _descCtrl.text.trim(),
-          requiresApproval: _requiresApproval,
-        );
+      name:              _nameCtrl.text.trim(),
+      description:       _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      requiresApproval:  _requiresApproval,
+      isFree:            _isFree,
+      price:             _isFree ? 0 : (double.tryParse(_priceCtrl.text) ?? 0),
+      showMembersCount:  _showMembersCount,
+    );
 
     if (!mounted) return;
-
-    // Ferme le sheet en premier
     Navigator.pop(context);
 
     if (group != null) {
@@ -463,20 +376,16 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
         ]),
         backgroundColor: AppTheme.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ));
-      Navigator.pushNamed(widget.parentContext, AppRoutes.groupDetail,
-          arguments: group.id);
+      Navigator.pushNamed(widget.parentContext, AppRoutes.groupDetail, arguments: group.id);
     } else {
       final err = context.read<GroupsProvider>().error;
       ScaffoldMessenger.of(widget.parentContext).showSnackBar(SnackBar(
         content: Text(err ?? 'Failed to create group'),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
       ));
     }
   }
@@ -491,88 +400,123 @@ class _CreateGroupSheetState extends State<_CreateGroupSheet> {
           24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Form(
         key: _formKey,
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                  child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 20),
-              const Text('Create Community',
-                  style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              const Text(
-                  'Build a space for professionals in your field',
-                  style: TextStyle(
-                      color: AppTheme.textSecondary, fontSize: 13)),
-              const SizedBox(height: 24),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Center(child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 20),
+            const Text('Create Community',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text('Build a space to share your expertise',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            const SizedBox(height: 24),
+
+            TextFormField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Community Name *',
+                  hintText: 'e.g. Advanced Flutter Dev'),
+              validator: (v) => (v == null || v.trim().length < 2)
+                  ? 'Name must be at least 2 characters' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _descCtrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'What will members learn here?',
+                  alignLabelWithHint: true),
+            ),
+            const SizedBox(height: 16),
+
+            // Toggles
+            _Toggle(
+              icon: Icons.lock_outline, title: 'Require Approval',
+              subtitle: 'Manually review each join request',
+              value: _requiresApproval,
+              onChanged: (v) => setState(() => _requiresApproval = v),
+            ),
+            const SizedBox(height: 8),
+            _Toggle(
+              icon: Icons.people_outline, title: 'Show Members Count',
+              subtitle: 'Display number of members publicly',
+              value: _showMembersCount,
+              onChanged: (v) => setState(() => _showMembersCount = v),
+            ),
+            const SizedBox(height: 8),
+            _Toggle(
+              icon: Icons.card_membership_outlined, title: 'Free Community',
+              subtitle: _isFree ? 'Free for everyone' : 'Paid subscription',
+              value: _isFree,
+              onChanged: (v) => setState(() => _isFree = v),
+            ),
+            if (!_isFree) ...[
+              const SizedBox(height: 12),
               TextFormField(
-                controller: _nameCtrl,
+                controller: _priceCtrl,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                    labelText: 'Community Name *',
-                    hintText: 'e.g. React Native Masters'),
-                validator: (v) => (v == null || v.trim().length < 2)
-                    ? 'Name must be at least 2 characters'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'What is this community about?',
-                    alignLabelWithHint: true),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.border),
+                  labelText: 'Monthly price (\$)',
+                  prefixIcon: Icon(Icons.attach_money),
                 ),
-                child: SwitchListTile(
-                  value: _requiresApproval,
-                  onChanged: (v) =>
-                      setState(() => _requiresApproval = v),
-                  activeColor: AppTheme.primary,
-                  title: const Text('Members need approval',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w500, fontSize: 14)),
-                  subtitle: const Text('You review each join request',
-                      style: TextStyle(fontSize: 12)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 4),
+                validator: (v) {
+                  if (!_isFree) {
+                    final n = double.tryParse(v ?? '');
+                    if (n == null || n <= 0) return 'Enter a valid price';
+                  }
+                  return null;
+                },
+              ),
+            ],
+
+            const SizedBox(height: 24),
+            Consumer<GroupsProvider>(
+              builder: (_, gp, __) => SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: gp.isCreating ? null : _create,
+                  child: gp.isCreating
+                      ? const SizedBox(width: 20, height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Create Community',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
-              const SizedBox(height: 24),
-              Consumer<GroupsProvider>(
-                builder: (_, gp, __) => SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: gp.isCreating ? null : _create,
-                    child: gp.isCreating
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Text('Create Community',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ),
-            ]),
+            ),
+          ]),
+        ),
       ),
     );
   }
+}
+
+class _Toggle extends StatelessWidget {
+  final IconData icon; final String title, subtitle;
+  final bool value; final ValueChanged<bool> onChanged;
+  const _Toggle({required this.icon, required this.title, required this.subtitle,
+      required this.value, required this.onChanged});
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: const Color(0xFFF8F9FA),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppTheme.border),
+    ),
+    child: SwitchListTile(
+      secondary: Icon(icon, color: AppTheme.primary, size: 20),
+      value: value,
+      onChanged: onChanged,
+      activeColor: AppTheme.primary,
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+    ),
+  );
 }
