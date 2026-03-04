@@ -4,8 +4,8 @@ import '../../models/service_model.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common/avatar_widget.dart';
 import '../../services/service_service.dart';
+import '../../services/service_request_service.dart';
 import '../../providers/auth_provider.dart';
-import '../../config/routes.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
   final ServiceModel service;
@@ -44,7 +44,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     return map[widget.service.cell] ?? AppTheme.primary;
   }
 
-  void _contactProvider() {
+  void _contactProvider() => _showHireSheet();
+
+  void _showHireSheet() {
     final currentUser = context.read<AuthProvider>().currentUser;
     if (currentUser == null) return;
     if (currentUser.id == widget.service.provider.id) {
@@ -53,10 +55,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       );
       return;
     }
-    Navigator.pushNamed(context, AppRoutes.chat, arguments: {
-      'userId': widget.service.provider.id,
-      'userName': widget.service.provider.fullName,
-    });
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _HireSheet(service: widget.service),
+    );
   }
 
   void _showReviewSheet() {
@@ -459,6 +463,245 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           ),
         ),
       ]),
+    );
+  }
+}
+
+// ─── Hire Sheet ──────────────────────────────────────────────────────────────
+class _HireSheet extends StatefulWidget {
+  final ServiceModel service;
+  const _HireSheet({required this.service});
+  @override
+  State<_HireSheet> createState() => _HireSheetState();
+}
+
+class _HireSheetState extends State<_HireSheet> {
+  final _msgCtrl    = TextEditingController();
+  final _budgetCtrl = TextEditingController();
+  bool _submitting  = false;
+  bool _showBudget  = false;
+
+  @override
+  void dispose() { _msgCtrl.dispose(); _budgetCtrl.dispose(); super.dispose(); }
+
+  Future<void> _submit() async {
+    final msg = _msgCtrl.text.trim();
+    if (msg.length < 10) {
+      _snack('Please describe your project (at least 10 characters)', isError: true);
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final budget = _showBudget && _budgetCtrl.text.isNotEmpty
+          ? double.tryParse(_budgetCtrl.text)
+          : null;
+      await ServiceRequestService().sendRequest(
+          widget.service.id, msg, budget: budget);
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('✅ Request sent! The provider will review it shortly.'),
+        backgroundColor: AppTheme.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+      ));
+    } catch (e) {
+      if (mounted) _snack(e.toString().replaceAll('Exception: ', ''), isError: true);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  void _snack(String msg, {bool isError = false}) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : AppTheme.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+
+  Color get _color {
+    const m = {
+      'Web Development': Color(0xFF6366F1), 'Design': Color(0xFFEC4899),
+      'Medicine': Color(0xFF14B8A6),        'Business': Color(0xFFF59E0B),
+      'Marketing': Color(0xFF8B5CF6),       'Engineering': Color(0xFF3B82F6),
+      'Finance': Color(0xFF10B981),         'Legal': Color(0xFF64748B),
+      'Education': Color(0xFFEF4444),
+    };
+    return m[widget.service.cell] ?? AppTheme.primary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.service;
+    return Container(
+      decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      padding: EdgeInsets.fromLTRB(
+          24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 28),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Drag handle
+          Center(child: Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2)),
+          )),
+          const SizedBox(height: 20),
+
+          // Service summary
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _color.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _color.withOpacity(0.2)),
+            ),
+            child: Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                    color: _color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.handyman_outlined, size: 22, color: _color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(s.title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text('by ${s.provider.fullName}',
+                    style: const TextStyle(
+                        color: AppTheme.textSecondary, fontSize: 12)),
+              ])),
+              Text('\$${s.price.toInt()}',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: _color)),
+            ]),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          const Text('Send a Hire Request',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text('Describe your project and the provider will review it.',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+          const SizedBox(height: 18),
+
+          // Message field
+          const Text('Project description *',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _msgCtrl,
+            maxLines: 5,
+            maxLength: 1000,
+            decoration: InputDecoration(
+              hintText:
+                  'Describe what you need:\n• What is the project about?\n• Timeline expectations\n• Any specific requirements',
+              hintStyle: const TextStyle(
+                  color: AppTheme.textSecondary, fontSize: 13, height: 1.6),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _color, width: 1.5)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Optional budget toggle
+          Row(children: [
+            GestureDetector(
+              onTap: () => setState(() => _showBudget = !_showBudget),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 20, height: 20,
+                  decoration: BoxDecoration(
+                    color: _showBudget ? _color : Colors.transparent,
+                    border: Border.all(
+                        color: _showBudget ? _color : const Color(0xFFCBD5E1),
+                        width: 1.5),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: _showBudget
+                      ? const Icon(Icons.check, size: 13, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                const Text('I have a specific budget',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              ]),
+            ),
+          ]),
+
+          // Budget field
+          if (_showBudget) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _budgetCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Your budget (\$)',
+                prefixIcon: const Icon(Icons.attach_money),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _color, width: 1.5)),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+
+          // Submit
+          SizedBox(
+            width: double.infinity, height: 52,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _color,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _submitting
+                  ? const SizedBox(
+                      width: 22, height: 22,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5))
+                  : const Row(mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.send_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text('Send Hire Request',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700)),
+                      ]),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }

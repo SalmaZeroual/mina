@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/services_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../models/service_model.dart';
 import '../../services/service_service.dart';
 import '../../widgets/common/bottom_nav_bar.dart';
@@ -62,6 +61,13 @@ class _ServicesScreenState extends State<ServicesScreen>
                     fontWeight: FontWeight.bold,
                     fontSize: 22,
                     color: AppTheme.textPrimary)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.inbox_outlined, color: AppTheme.textPrimary),
+                tooltip: 'My Requests',
+                onPressed: () => Navigator.pushNamed(context, AppRoutes.serviceRequests),
+              ),
+            ],
             bottom: PreferredSize(
               preferredSize: Size.fromHeight(_tabs.index == 0 ? 106 : 48),
               child: Column(children: [
