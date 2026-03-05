@@ -15,6 +15,12 @@ class UserModel {
   final int followingCount;
   final DateTime joinedAt;
   final bool isOnline;
+  // Social state
+  final bool isFollowing;
+  final String? connectionStatus; // null | 'pending' | 'accepted'
+  final String? connectionId;
+  final bool iAmRequester;
+  final bool isBlocked;
 
   UserModel({
     required this.id,
@@ -33,27 +39,40 @@ class UserModel {
     this.followingCount = 0,
     required this.joinedAt,
     this.isOnline = false,
+    this.isFollowing = false,
+    this.connectionStatus,
+    this.connectionId,
+    this.iAmRequester = false,
+    this.isBlocked = false,
   });
+
+  bool get isConnected => connectionStatus == 'accepted';
+  bool get isPendingConnection => connectionStatus == 'pending';
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final fullName = (json['full_name'] as String?) ?? (json['name'] as String?) ?? '';
     return UserModel(
-      id:             (json['id']          as String?) ?? '',
-      fullName:       fullName,
-      email:          (json['email']       as String?) ?? '',
-      avatarUrl:       json['avatar_url']  as String?,
-      initials:       (json['initials']    as String?) ?? (fullName.isNotEmpty ? _getInitials(fullName) : '?'),
-      cellId:         (json['cell_id']     as String?) ?? '',
-      cell:           (json['cell']        as String?) ?? (json['cell_name'] as String?) ?? '',
-      title:          (json['title']       as String?) ?? '',
-      location:        json['location']    as String?,
-      company:         json['company']     as String?,
-      about:           json['about']       as String?,
-      postsCount:     (json['posts_count']     as int?) ?? 0,
-      followersCount: (json['followers_count'] as int?) ?? 0,
-      followingCount: (json['following_count'] as int?) ?? 0,
-      joinedAt:       DateTime.tryParse((json['joined_at'] as String?) ?? (json['created_at'] as String?) ?? '') ?? DateTime.now(),
-      isOnline:       json['is_online'] == true || json['is_online'] == 1,
+      id:               (json['id']          as String?) ?? '',
+      fullName:         fullName,
+      email:            (json['email']       as String?) ?? '',
+      avatarUrl:         json['avatar_url']  as String?,
+      initials:         (json['initials']    as String?) ?? (fullName.isNotEmpty ? _getInitials(fullName) : '?'),
+      cellId:           (json['cell_id']     as String?) ?? '',
+      cell:             (json['cell']        as String?) ?? (json['cell_name'] as String?) ?? '',
+      title:            (json['title']       as String?) ?? '',
+      location:          json['location']    as String?,
+      company:           json['company']     as String?,
+      about:             json['about']       as String?,
+      postsCount:       (json['posts_count']     as int?) ?? 0,
+      followersCount:   (json['followers_count'] as int?) ?? 0,
+      followingCount:   (json['following_count'] as int?) ?? 0,
+      joinedAt:         DateTime.tryParse((json['joined_at'] as String?) ?? (json['created_at'] as String?) ?? '') ?? DateTime.now(),
+      isOnline:         json['is_online'] == true || json['is_online'] == 1,
+      isFollowing:      json['is_following'] == true || json['is_following'] == 1,
+      connectionStatus:  json['connection_status'] as String?,
+      connectionId:      json['connection_id']     as String?,
+      iAmRequester:     json['i_am_requester'] == true || json['i_am_requester'] == 1,
+      isBlocked:        json['is_blocked'] == true || json['is_blocked'] == 1,
     );
   }
 

@@ -10,10 +10,11 @@ import '../screens/groups/group_detail_screen.dart';
 import '../screens/services/services_screen.dart';
 import '../screens/services/service_detail_screen.dart';
 import '../screens/services/publish_service_screen.dart';
-import '../screens/services/service_requests_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
+import '../screens/profile/user_profile_screen.dart';
+import '../screens/services/service_requests_screen.dart';
 import '../screens/home/create_post_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/search_screen.dart';
@@ -32,10 +33,11 @@ class AppRoutes {
   static const String services       = '/services';
   static const String serviceDetail  = '/service-detail';
   static const String publishService = '/publish-service';
-  static const String serviceRequests = '/service-requests';
   static const String profile        = '/profile';
   static const String editProfile    = '/edit-profile';
-  static const String settings        = '/settings';
+  static const String settings         = '/settings';
+  static const String userProfile      = '/user-profile';
+  static const String serviceRequests  = '/service-requests';
   static const String createPost     = '/create-post';
   static const String notifications  = '/notifications';
   static const String search         = '/search';
@@ -48,13 +50,8 @@ class AppRoutes {
       case home:           return _route(const HomeScreen());
       case messages:       return _route(const MessagesScreen());
       case chat:
-        final conv = routeSettings.arguments as ConversationModel?;
-        return _route(ChatScreen(conversation: conv ?? ConversationModel(
-          id: '',
-          participant: ParticipantModel(id: '', fullName: '', initials: '', title: ''),
-          lastMessage: '',
-          lastMessageAt: DateTime.now(),
-        )));
+        final conv = routeSettings.arguments as ConversationModel;
+        return _route(ChatScreen(conversation: conv));
       case groups:         return _route(const GroupsScreen());
       case groupDetail:
         final groupId = routeSettings.arguments as String;
@@ -64,10 +61,13 @@ class AppRoutes {
         final service = routeSettings.arguments as ServiceModel;
         return _route(ServiceDetailScreen(service: service));
       case publishService: return _route(const PublishServiceScreen());
-      case serviceRequests: return _route(const ServiceRequestsScreen());
       case profile:        return _route(const ProfileScreen());
       case editProfile:    return _route(const EditProfileScreen());
-      case settings:       return _route(const SettingsScreen());
+      case settings:          return _route(const SettingsScreen());
+      case userProfile:
+        final userId = routeSettings.arguments as String;
+        return _route(UserProfileScreen(userId: userId));
+      case serviceRequests:   return _route(const ServiceRequestsScreen());
       case createPost:     return _route(const CreatePostScreen());
       case notifications:  return _route(const NotificationsScreen());
       case search:         return _route(const SearchScreen());
