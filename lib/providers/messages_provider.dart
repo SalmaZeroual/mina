@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/message_model.dart';
+import '../models/user_model.dart';
+import '../services/user_service.dart';
 import '../services/message_service.dart';
 
 class MessagesProvider extends ChangeNotifier {
@@ -22,8 +24,25 @@ class MessagesProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   int get totalUnread => _conversations.fold(0, (sum, c) => sum + c.unreadCount);
 
+  List<UserModel> _userResults = [];
+  List<UserModel> get userResults => _userResults;
+
   void search(String query) {
     _searchQuery = query;
+    notifyListeners();
+  }
+
+  Future<void> searchUsers(String query) async {
+    if (query.isEmpty) {
+      _userResults = [];
+      notifyListeners();
+      return;
+    }
+    try {
+      _userResults = await UserService().searchUsers(query);
+    } catch (_) {
+      _userResults = [];
+    }
     notifyListeners();
   }
 

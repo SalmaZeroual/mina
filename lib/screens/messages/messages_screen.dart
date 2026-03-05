@@ -7,6 +7,9 @@ import '../../widgets/common/bottom_nav_bar.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/avatar_widget.dart';
 import '../../config/routes.dart';
+import '../../services/user_service.dart';
+import '../../services/message_service.dart';
+import '../../models/user_model.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -47,31 +50,108 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
                 controller: _searchCtrl,
                 onChanged: (v) {
                   mp.search(v);
+                  mp.searchUsers(v);
                   setState(() => _isSearching = v.isNotEmpty);
                 },
                 onClear: () {
                   _searchCtrl.clear();
                   mp.search('');
+                  mp.searchUsers('');
                   setState(() => _isSearching = false);
                 },
               ),
             ),
 
             Expanded(
-              child: convs.isEmpty
-                  ? _EmptyState(isSearching: _isSearching, query: _searchCtrl.text)
-                  : RefreshIndicator(
-                      onRefresh: mp.loadConversations,
-                      color: AppTheme.primary,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.only(top: 8, bottom: 80),
-                        itemCount: convs.length,
-                        itemBuilder: (_, i) => _ConversationTile(
+              child: RefreshIndicator(
+                onRefresh: mp.loadConversations,
+                color: AppTheme.primary,
+                child: CustomScrollView(
+                  slivers: [
+                    // ── People from cell (when searching) ─────────────────
+                    if (_isSearching && mp.userResults.isNotEmpty) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                          child: Text('People in your cell',
+                              style: TextStyle(fontWeight: FontWeight.w700,
+                                  fontSize: 12, color: AppTheme.textSecondary,
+                                  letterSpacing: 0.5)),
+                        ),
+                      ),
+                      SliverList(delegate: SliverChildBuilderDelegate(
+                        (_, i) {
+                          final u = mp.userResults[i];
+                          return ListTile(
+                            contentPadding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                            leading: Stack(children: [
+                              AvatarWidget(initials: u.initials,
+                                  avatarUrl: u.avatarUrl, size: 46),
+                              if (u.isOnline) Positioned(right: 1, bottom: 1,
+                                child: Container(width: 10, height: 10,
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xFF22C55E),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2)),
+                                )),
+                            ]),
+                            title: Text(u.fullName, style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                            subtitle: u.title.isNotEmpty
+                                ? Text(u.title, style: const TextStyle(
+                                    fontSize: 12, color: Color(0xFF94A3B8)))
+                                : null,
+                            trailing: const Icon(Icons.send_rounded,
+                                size: 18, color: AppTheme.primary),
+                            onTap: () async {
+                              try {
+                                final conv = await MessageService()
+                                    .getOrCreateConversation(u.id);
+                                if (context.mounted) {
+                                  Navigator.pushNamed(context,
+                                      AppRoutes.chat, arguments: conv);
+                                }
+                              } catch (_) {}
+                            },
+                          );
+                        },
+                        childCount: mp.userResults.length,
+                      )),
+                      if (convs.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                            child: Text('Conversations',
+                                style: TextStyle(fontWeight: FontWeight.w700,
+                                    fontSize: 12, color: AppTheme.textSecondary,
+                                    letterSpacing: 0.5)),
+                          ),
+                        ),
+                    ],
+                    // ── Conversations ─────────────────────────────────────
+                    if (convs.isEmpty && !_isSearching)
+                      SliverFillRemaining(
+                        child: _EmptyState(
+                            isSearching: _isSearching,
+                            query: _searchCtrl.text),
+                      )
+                    else if (convs.isEmpty && _isSearching && mp.userResults.isEmpty)
+                      SliverFillRemaining(
+                        child: _EmptyState(
+                            isSearching: true, query: _searchCtrl.text),
+                      )
+                    else
+                      SliverList(delegate: SliverChildBuilderDelegate(
+                        (_, i) => _ConversationTile(
                           conversation: convs[i],
                           onDelete: () => _confirmDelete(context, mp, convs[i]),
                         ),
-                      ),
-                    ),
+                        childCount: convs.length,
+                      )),
+                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                  ],
+                ),
+              ),
             ),
           ]);
         },
@@ -398,61 +478,172 @@ class _NewMessageSheet extends StatefulWidget {
 
 class _NewMessageSheetState extends State<_NewMessageSheet> {
   final _searchCtrl = TextEditingController();
+  List<UserModel> _results = [];
+  List<UserModel> _allUsers = [];
+  bool _loading = true;
+  bool _opening = false;
+  String _openingId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAll();
+  }
 
   @override
   void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
+  // Load all users in my cell on open (no query needed)
+  Future<void> _loadAll() async {
+    try {
+      final users = await UserService().searchUsers('');
+      if (mounted) setState(() { _allUsers = users; _results = users; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _onSearch(String q) {
+    final lower = q.toLowerCase().trim();
+    setState(() {
+      _results = lower.isEmpty
+          ? _allUsers
+          : _allUsers.where((u) =>
+              u.fullName.toLowerCase().contains(lower) ||
+              u.title.toLowerCase().contains(lower) ||
+              u.cell.toLowerCase().contains(lower)).toList();
+    });
+  }
+
+  Future<void> _openChat(BuildContext context, UserModel user) async {
+    if (_opening) return;
+    setState(() { _opening = true; _openingId = user.id; });
+    try {
+      final conv = await MessageService().getOrCreateConversation(user.id);
+      if (mounted) {
+        Navigator.pop(context);
+        Navigator.pushNamed(context, AppRoutes.chat, arguments: conv);
+      }
+    } catch (_) {}
+    if (mounted) setState(() { _opening = false; _openingId = ''; });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      height: MediaQuery.of(context).size.height * 0.82,
+      decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       child: Column(children: [
         const SizedBox(height: 12),
-        Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+        Container(width: 40, height: 4,
+            decoration: BoxDecoration(color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 16),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Row(children: [
-            Text('New Message', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          ]),
+          child: Align(alignment: Alignment.centerLeft,
+            child: Text('New Message',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
         ),
         const SizedBox(height: 12),
+        // Search bar
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Container(
-            height: 42,
-            decoration: BoxDecoration(color: const Color(0xFFF0F1F5), borderRadius: BorderRadius.circular(12)),
+            height: 44,
+            decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0))),
             child: TextField(
               controller: _searchCtrl,
               autofocus: true,
-              onChanged: (_) => setState(() {}),
+              onChanged: _onSearch,
+              style: const TextStyle(fontSize: 14),
               decoration: const InputDecoration(
-                hintText: 'Search by name or cell...',
-                prefixIcon: Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+                hintText: 'Search people in your cell...',
+                hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                prefixIcon: Icon(Icons.search_rounded,
+                    size: 19, color: Color(0xFF94A3B8)),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                contentPadding: EdgeInsets.symmetric(vertical: 13),
               ),
             ),
           ),
         ),
         const SizedBox(height: 8),
-        Expanded(
-          child: _searchCtrl.text.isEmpty
-              ? const Center(
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('🌍', style: TextStyle(fontSize: 48)),
-                    SizedBox(height: 12),
-                    Text('Search for a professional\nto start a conversation',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14, height: 1.5)),
-                  ]),
-                )
-              : const Center(
-                  child: Text('Search results will appear here',
-                      style: TextStyle(color: AppTheme.textSecondary)),
-                ),
-        ),
+        // Results
+        Expanded(child: _loading
+            ? const Center(child: CircularProgressIndicator(
+                color: AppTheme.primary, strokeWidth: 2.5))
+            : _results.isEmpty
+                ? Center(child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_outline,
+                          size: 52, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text(_searchCtrl.text.isEmpty
+                              ? 'No people in your cell yet'
+                              : 'No results for "${_searchCtrl.text}"',
+                          style: const TextStyle(
+                              color: Color(0xFF94A3B8), fontSize: 14)),
+                    ]))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                    itemCount: _results.length,
+                    itemBuilder: (_, i) {
+                      final u = _results[i];
+                      final isOpening = _opening && _openingId == u.id;
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 4),
+                        leading: Stack(children: [
+                          AvatarWidget(initials: u.initials,
+                              avatarUrl: u.avatarUrl, size: 46),
+                          if (u.isOnline) Positioned(right: 1, bottom: 1,
+                            child: Container(width: 11, height: 11,
+                              decoration: BoxDecoration(
+                                  color: const Color(0xFF22C55E),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: Colors.white, width: 2)),
+                            )),
+                        ]),
+                        title: Text(u.fullName,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                        subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          if (u.title.isNotEmpty)
+                            Text(u.title, style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF64748B))),
+                          if (u.cell.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(top: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: AppTheme.primary.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: Text(u.cell, style: const TextStyle(
+                                  fontSize: 10, color: AppTheme.primary,
+                                  fontWeight: FontWeight.w700)),
+                            ),
+                        ]),
+                        trailing: isOpening
+                            ? const SizedBox(width: 20, height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: AppTheme.primary))
+                            : const Icon(Icons.send_rounded,
+                                size: 20, color: AppTheme.primary),
+                        onTap: () => _openChat(context, u),
+                      );
+                    },
+                  )),
       ]),
     );
   }

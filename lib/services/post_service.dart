@@ -35,4 +35,20 @@ class PostService {
     final data = await ApiService.post('/posts/$postId/comments', {'content': content});
     return data['data'] as Map<String, dynamic>;
   }
+
+  Future<List<Map<String, dynamic>>> getLikers(String postId) async {
+    final data = await ApiService.get('/posts/$postId/likes');
+    return List<Map<String, dynamic>>.from(data['data'] as List);
+  }
+
+  Future<bool> likeComment(String commentId) async {
+    final data = await ApiService.post('/posts/comments/$commentId/like', {});
+    return (data['data']['liked'] as bool?) ?? false;
+  }
+
+  Future<Map<String, dynamic>> replyComment(String commentId, String content) async {
+    final data = await ApiService.post(
+        '/posts/comments/$commentId/reply', {'content': content});
+    return data['data'] as Map<String, dynamic>;
+  }
 }

@@ -12,6 +12,7 @@ import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/avatar_widget.dart';
 import '../../widgets/home/post_card.dart';
 import '../../config/routes.dart';
+import '../../services/message_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // USER PROFILE SCREEN — lazy-loaded tabs, fast initial render
@@ -76,7 +77,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     switch (index) {
       case 0: if (!_postsLoaded && !_postsLoading) _loadPosts(); break;
       case 1: if (!_followersLoaded && !_followersLoading) _loadFollowers(); break;
-      case 2: if (!_followingLoaded && !_followingLoading) _loadFollowing(); break;
     }
   }
 
@@ -95,7 +95,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   Future<void> _loadFollowers() async {
     setState(() => _followersLoading = true);
     try {
-      _followers     = await _svc.getFollowers(widget.userId);
+      // Load connections (network) for this user
+      _followers     = await _svc.getUserConnections(widget.userId);
       _followersLoaded = true;
     } catch (_) {}
     if (mounted) setState(() => _followersLoading = false);
@@ -169,16 +170,9 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   // ── Message ──────────────────────────────────────────────────────────────────
   Future<void> _openMessage() async {
     if (_user == null) return;
-    if (!_user!.isConnected) {
-      _snack('Connect with this person first to message them');
-      return;
-    }
     setState(() => _actionLoading = true);
     try {
-      final data = await ApiService.post(
-          '/messages/conversations/${_user!.id}', {});
-      final conv = ConversationModel.fromJson(
-          data['data'] as Map<String, dynamic>);
+      final conv = await MessageService().getOrCreateConversation(_user!.id);
       if (mounted) Navigator.pushNamed(context, AppRoutes.chat, arguments: conv);
     } catch (e) {
       _snack(e.toString(), isError: true);
@@ -281,10 +275,10 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               indicatorSize: TabBarIndicatorSize.tab,
               labelStyle: const TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w700),
-              tabs: [
-                Tab(text: 'Posts (${_postsLoaded ? _posts.length : u.postsCount})'),
-                Tab(text: 'Followers (${_followersLoaded ? _followers.length : u.followersCount})'),
-                Tab(text: 'Following (${_followingLoaded ? _following.length : u.followingCount})'),
+              tabs: const [
+                Tab(text: 'Posts'),
+                Tab(text: 'Network'),
+                Tab(text: 'About'),
               ],
             ),
           ),
@@ -297,48 +291,32 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                 _postsLoading
                     ? const _TabLoader()
                     : _posts.isEmpty && _postsLoaded
-                        ? _EmptyTab(
-                            icon: Icons.article_outlined,
+                        ? _EmptyTab(icon: Icons.article_outlined,
                             title: 'No posts yet',
-                            sub: '${u.fullName.split(' ').first} hasn\'t posted anything yet')
+                            sub: 'Nothing posted yet')
                         : ListView.builder(
                             padding: const EdgeInsets.only(bottom: 80),
                             itemCount: _posts.length,
                             itemBuilder: (_, i) => PostCard(
                               post: _posts[i],
-                              onDeleted: () {
-                                setState(() => _posts.removeAt(i));
-                              },
+                              onDeleted: () => setState(() => _posts.removeAt(i)),
                             ),
                           ),
 
-                // ── Followers tab ──────────────────────────────────────────
+                // ── Network tab (connections) ───────────────────────────────
                 _followersLoading
                     ? const _TabLoader()
                     : _followers.isEmpty && _followersLoaded
-                        ? _EmptyTab(
-                            icon: Icons.people_outline,
-                            title: 'No followers yet', sub: '')
+                        ? _EmptyTab(icon: Icons.people_outline,
+                            title: 'No connections', sub: '')
                         : _UserListTab(
                             users: _followers,
                             onTap: (id) => Navigator.pushNamed(
-                                context, AppRoutes.userProfile,
-                                arguments: id),
+                                context, AppRoutes.userProfile, arguments: id),
                           ),
 
-                // ── Following tab ──────────────────────────────────────────
-                _followingLoading
-                    ? const _TabLoader()
-                    : _following.isEmpty && _followingLoaded
-                        ? _EmptyTab(
-                            icon: Icons.person_add_alt_outlined,
-                            title: 'Not following anyone', sub: '')
-                        : _UserListTab(
-                            users: _following,
-                            onTap: (id) => Navigator.pushNamed(
-                                context, AppRoutes.userProfile,
-                                arguments: id),
-                          ),
+                // ── About tab ────────────────────────────────────────────────
+                _AboutUserTab(user: u),
               ],
             ),
           ),
@@ -484,14 +462,23 @@ class _IdentityCard extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Stats
-        Row(children: [
-          _Stat('${u.postsCount}',     'Posts'),
-          _divider(),
-          _Stat('${u.followersCount}', 'Followers'),
-          _divider(),
-          _Stat('${u.followingCount}', 'Following'),
-        ]),
+        // Stats — Posts | Followers | Following
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0))),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _StatTile(value: '${u.postsCount}',     label: 'Posts',     onTap: null),
+            _SDivider(),
+            _StatTile(value: '${u.followersCount}', label: 'Followers',
+                onTap: () => _showFollowSheet(context, u.id, initialTab: 0)),
+            _SDivider(),
+            _StatTile(value: '${u.followingCount}', label: 'Following',
+                onTap: () => _showFollowSheet(context, u.id, initialTab: 1)),
+          ]),
+        ),
 
         if (!isMe) ...[
           const SizedBox(height: 12),
@@ -506,7 +493,7 @@ class _IdentityCard extends StatelessWidget {
                 loading: actionLoading, onTap: onFollow)),
             const SizedBox(width: 8),
             // Message
-            _MsgBtn(enabled: u.isConnected,
+            _MsgBtn(enabled: true,
                 loading: actionLoading, onTap: onMessage),
           ]),
         ],
@@ -525,6 +512,15 @@ class _IdentityCard extends StatelessWidget {
   Widget _divider() => Container(
       width: 1, height: 32, margin: const EdgeInsets.symmetric(horizontal: 14),
       color: const Color(0xFFE9ECF2));
+
+  void _showFollowSheet(BuildContext context, String userId, {int initialTab = 0}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _FollowSheet(userId: userId, initialTab: initialTab),
+    );
+  }
 
   Color _colorFor(String? cell) {
     const m = {
@@ -559,14 +555,16 @@ class _Badge extends StatelessWidget {
 
 class _Stat extends StatelessWidget {
   final String value, label;
-  const _Stat(this.value, this.label);
+  final bool highlight;
+  const _Stat(this.value, this.label, {this.highlight = false});
   @override
   Widget build(BuildContext context) => Expanded(
     child: Column(children: [
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w900,
-          fontSize: 17, color: Color(0xFF0F172A))),
-      Text(label, style: const TextStyle(fontSize: 11,
-          color: Color(0xFF94A3B8))),
+      Text(value, style: TextStyle(fontWeight: FontWeight.w900,
+          fontSize: 17, color: highlight ? AppTheme.primary : const Color(0xFF0F172A))),
+      Text(label, style: TextStyle(fontSize: 11,
+          color: highlight ? AppTheme.primary : const Color(0xFF94A3B8),
+          fontWeight: highlight ? FontWeight.w700 : FontWeight.normal)),
     ]),
   );
 }
@@ -830,4 +828,217 @@ class _EmptyTab extends StatelessWidget {
       ],
     ]),
   );
+}
+
+// ─── About tab for other user's profile ──────────────────────────────────────
+class _AboutUserTab extends StatelessWidget {
+  final UserModel user;
+  const _AboutUserTab({required this.user});
+  @override
+  Widget build(BuildContext context) {
+    final u = user;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      child: Column(children: [
+        if (u.about != null && u.about!.isNotEmpty)
+          _InfoCard(title: 'Bio', icon: Icons.format_quote_outlined,
+            child: Text(u.about!, style: const TextStyle(
+                fontSize: 14, color: AppTheme.textSecondary, height: 1.7))),
+        _InfoCard(title: 'Professional', icon: Icons.work_outline_rounded,
+          child: Column(children: [
+            _InfoRow(Icons.grid_view_rounded, 'Cell',    u.cell.isNotEmpty ? u.cell : '—'),
+            _InfoRow(Icons.badge_outlined,    'Title',   u.title.isNotEmpty ? u.title : '—'),
+            _InfoRow(Icons.business_outlined, 'Company', u.company ?? '—'),
+            _InfoRow(Icons.location_on_outlined, 'Location', u.location ?? '—'),
+          ])),
+        if (u.mutualConnections > 0)
+          _InfoCard(title: 'Mutual connections', icon: Icons.people_rounded,
+            child: Text('You have ${u.mutualConnections} connection${u.mutualConnections > 1 ? "s" : ""} in common',
+                style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary))),
+      ]),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final String title; final IconData icon; final Widget child;
+  const _InfoCard({required this.title, required this.icon, required this.child});
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE9ECF2))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Row(children: [
+          Container(width: 30, height: 30,
+            decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(9)),
+            child: Icon(icon, size: 15, color: AppTheme.primary)),
+          const SizedBox(width: 10),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold,
+              fontSize: 14, color: Color(0xFF0F172A))),
+        ])),
+      const Divider(height: 1, color: Color(0xFFE9ECF2)),
+      Padding(padding: const EdgeInsets.all(14), child: child),
+    ]),
+  );
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon; final String label, value;
+  const _InfoRow(this.icon, this.label, this.value);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 15, color: AppTheme.textSecondary),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontSize: 11,
+            color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 1),
+        Text(value, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500,
+            color: value == '—' ? AppTheme.textSecondary : const Color(0xFF0F172A))),
+      ])),
+    ]),
+  );
+}
+
+// ─── _StatTile + _SDivider (used in _IdentityCard stats row) ─────────────────
+class _StatTile extends StatelessWidget {
+  final String value, label;
+  final VoidCallback? onTap;
+  const _StatTile({required this.value, required this.label, this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Column(children: [
+      Text(value, style: TextStyle(
+          fontWeight: FontWeight.w900, fontSize: 17,
+          color: onTap != null ? AppTheme.primary : const Color(0xFF0F172A))),
+      const SizedBox(height: 2),
+      Text(label, style: TextStyle(
+          fontSize: 11, fontWeight: FontWeight.w500,
+          color: onTap != null ? AppTheme.primary : const Color(0xFF94A3B8))),
+    ]),
+  );
+}
+
+class _SDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 36, color: const Color(0xFFE2E8F0));
+}
+
+// ─── Followers / Following sheet ─────────────────────────────────────────────
+class _FollowSheet extends StatefulWidget {
+  final String userId;
+  final int initialTab;
+  const _FollowSheet({required this.userId, this.initialTab = 0});
+  @override
+  State<_FollowSheet> createState() => _FollowSheetState();
+}
+
+class _FollowSheetState extends State<_FollowSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabs;
+  List<UserModel> _followers = [], _following = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
+    _load();
+  }
+
+  @override
+  void dispose() { _tabs.dispose(); super.dispose(); }
+
+  Future<void> _load() async {
+    final svc = UserService();
+    try {
+      final res = await Future.wait([
+        svc.getFollowers(widget.userId),
+        svc.getFollowing(widget.userId),
+      ]);
+      if (mounted) setState(() {
+        _followers = res[0]; _following = res[1]; _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: MediaQuery.of(context).size.height * 0.72,
+    decoration: const BoxDecoration(color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+    child: Column(children: [
+      const SizedBox(height: 12),
+      Container(width: 40, height: 4,
+          decoration: BoxDecoration(color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2))),
+      const SizedBox(height: 4),
+      TabBar(
+        controller: _tabs,
+        labelColor: AppTheme.primary,
+        unselectedLabelColor: const Color(0xFF94A3B8),
+        indicatorColor: AppTheme.primary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        tabs: [
+          Tab(text: 'Followers (${_followers.length})'),
+          Tab(text: 'Following (${_following.length})'),
+        ],
+      ),
+      Expanded(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(
+                color: AppTheme.primary, strokeWidth: 2.5))
+            : TabBarView(controller: _tabs, children: [
+                _SheetUserList(users: _followers),
+                _SheetUserList(users: _following),
+              ]),
+      ),
+    ]),
+  );
+}
+
+class _SheetUserList extends StatelessWidget {
+  final List<UserModel> users;
+  const _SheetUserList({required this.users});
+  @override
+  Widget build(BuildContext context) {
+    if (users.isEmpty) return const Center(
+      child: Text('No users yet', style: TextStyle(color: Color(0xFF94A3B8))));
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+      itemCount: users.length,
+      itemBuilder: (_, i) {
+        final u = users[i];
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: AvatarWidget(initials: u.initials, avatarUrl: u.avatarUrl, size: 44),
+          title: Text(u.fullName,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          subtitle: u.title.isNotEmpty
+              ? Text(u.title, style: const TextStyle(
+                  color: Color(0xFF94A3B8), fontSize: 12))
+              : null,
+          trailing: const Icon(Icons.arrow_forward_ios_rounded,
+              size: 13, color: Color(0xFFCBD5E1)),
+          onTap: () {
+            Navigator.pop(context);
+            final me = context.read<AuthProvider>().currentUser?.id;
+            if (me == u.id) Navigator.pushNamed(context, AppRoutes.profile);
+            else Navigator.pushNamed(context, AppRoutes.userProfile, arguments: u.id);
+          },
+        );
+      },
+    );
+  }
 }

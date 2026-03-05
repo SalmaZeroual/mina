@@ -68,6 +68,16 @@ class UserService {
     return (data['data'] as List).map((u) => UserModel.fromJson(u)).toList();
   }
 
+  Future<List<UserModel>> getUserConnections(String userId) async {
+    final data = await ApiService.get('/users/$userId/connections');
+    return (data['data'] as List).map((j) => UserModel.fromJson(j)).toList();
+  }
+
+  Future<bool> isNetworkHidden(String userId) async {
+    final data = await ApiService.get('/users/$userId/connections');
+    return data['hidden'] == true;
+  }
+
   Future<void> blockUser(String userId) async {
     await ApiService.post('/connections/block/$userId', {});
   }

@@ -14,6 +14,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
 import '../screens/profile/user_profile_screen.dart';
+import '../screens/posts/comments_screen.dart';
 import '../screens/services/service_requests_screen.dart';
 import '../screens/home/create_post_screen.dart';
 import '../screens/notifications_screen.dart';
@@ -37,6 +38,7 @@ class AppRoutes {
   static const String editProfile    = '/edit-profile';
   static const String settings         = '/settings';
   static const String userProfile      = '/user-profile';
+  static const String comments          = '/comments';
   static const String serviceRequests  = '/service-requests';
   static const String createPost     = '/create-post';
   static const String notifications  = '/notifications';
@@ -64,6 +66,9 @@ class AppRoutes {
       case profile:        return _route(const ProfileScreen());
       case editProfile:    return _route(const EditProfileScreen());
       case settings:          return _route(const SettingsScreen());
+      case comments:
+        final post = routeSettings.arguments as dynamic;
+        return _route(CommentsScreen(post: post));
       case userProfile:
         final userId = routeSettings.arguments as String;
         return _route(UserProfileScreen(userId: userId));

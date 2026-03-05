@@ -7,6 +7,7 @@ import '../../services/post_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/routes.dart';
 import '../common/avatar_widget.dart';
+import '../../screens/posts/comments_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST CARD — fully interactive, professional
@@ -157,6 +158,20 @@ class _PostCardState extends State<PostCard>
   }
 
   // ── Repost ───────────────────────────────────────────────────────────────────
+  void _showLikers() async {
+    try {
+      final likers = await PostService().getLikers(widget.post.id);
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => _LikersSheet(likers: likers,
+            onTap: (id) { Navigator.pop(context); _goToProfile(id); }),
+      );
+    } catch (_) {}
+  }
+
   void _openRepost() {
     showModalBottomSheet(
       context: context,
@@ -258,22 +273,28 @@ class _PostCardState extends State<PostCard>
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
             child: Row(children: [
               if (_likesCount > 0) ...[
-                Container(
-                  width: 20, height: 20,
-                  decoration: const BoxDecoration(
-                      color: AppTheme.primary, shape: BoxShape.circle),
-                  child: const Icon(Icons.thumb_up_rounded,
-                      size: 11, color: Colors.white),
+                GestureDetector(
+                  onTap: _showLikers,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(
+                      width: 20, height: 20,
+                      decoration: const BoxDecoration(
+                          color: AppTheme.primary, shape: BoxShape.circle),
+                      child: const Icon(Icons.thumb_up_rounded,
+                          size: 11, color: Colors.white),
+                    ),
+                    const SizedBox(width: 5),
+                    Text('$_likesCount',
+                        style: const TextStyle(fontSize: 12.5,
+                            color: Color(0xFF64748B))),
+                  ]),
                 ),
-                const SizedBox(width: 5),
-                Text('$_likesCount',
-                    style: const TextStyle(fontSize: 12.5,
-                        color: Color(0xFF64748B))),
               ],
               const Spacer(),
               if (_commentsCount > 0)
                 GestureDetector(
-                  onTap: () => _toggleComments(),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => CommentsScreen(post: widget.post))),
                   child: Text('$_commentsCount comment${_commentsCount > 1 ? "s" : ""}',
                       style: const TextStyle(fontSize: 12.5,
                           color: Color(0xFF64748B))),
@@ -305,7 +326,8 @@ class _PostCardState extends State<PostCard>
             _ActionBtn(
               icon: Icons.chat_bubble_outline_rounded,
               label: 'Comment',
-              onTap: () => _toggleComments(focusInput: true),
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => CommentsScreen(post: widget.post))),
             ),
             _vDivider(),
             _ActionBtn(
@@ -326,20 +348,6 @@ class _PostCardState extends State<PostCard>
         ),
 
         const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-
-        // ─ Comments ───────────────────────────────────────────────────────────
-        if (_showComments)
-          _CommentsPanel(
-            comments: _comments,
-            loading: _loadingComments,
-            sending: _sendingComment,
-            controller: _commentCtrl,
-            focusNode: _commentFocus,
-            onSend: _postComment,
-            onProfileTap: _goToProfile,
-            myInitials: context.read<AuthProvider>().currentUser?.initials ?? '?',
-            myAvatar: context.read<AuthProvider>().currentUser?.avatarUrl,
-          ),
       ]),
     );
   }
@@ -880,5 +888,57 @@ class _RepostSheetState extends State<_RepostSheet> {
         ),
       ]),
     ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Likers sheet (from PostCard)
+// ─────────────────────────────────────────────────────────────────────────────
+class _LikersSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> likers;
+  final ValueChanged<String> onTap;
+  const _LikersSheet({required this.likers, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: const BoxDecoration(color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.55),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const SizedBox(height: 12),
+      Container(width: 40, height: 4,
+          decoration: BoxDecoration(color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2))),
+      const SizedBox(height: 12),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(width: 26, height: 26,
+          decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
+          child: const Icon(Icons.thumb_up_rounded, size: 14, color: Colors.white)),
+        const SizedBox(width: 8),
+        Text('${likers.length} \${likers.length == 1 ? "like" : "likes"}',
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+      ]),
+      const SizedBox(height: 8),
+      const Divider(height: 1),
+      Flexible(child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+        itemCount: likers.length,
+        itemBuilder: (_, i) {
+          final u = likers[i];
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: AvatarWidget(initials: u['initials'] as String? ?? '?',
+                avatarUrl: u['avatar_url'] as String?, size: 44),
+            title: Text(u['full_name'] as String? ?? '',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            subtitle: (u['title'] as String? ?? '').isNotEmpty
+                ? Text(u['title'] as String,
+                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12))
+                : null,
+            onTap: () => onTap(u['id'] as String? ?? ''),
+          );
+        },
+      )),
+    ]),
   );
 }
