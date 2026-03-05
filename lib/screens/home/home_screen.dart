@@ -61,7 +61,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
                   child: PostCard(
                     post: home.posts[i],
-                    onLike: () => home.toggleLike(home.posts[i].id),
                   ),
                 ),
               ),

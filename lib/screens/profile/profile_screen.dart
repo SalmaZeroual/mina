@@ -448,7 +448,10 @@ class _PostsTab extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),
       itemCount: posts.length,
-      itemBuilder: (_, i) => PostCard(post: posts[i]),
+      itemBuilder: (_, i) => PostCard(
+                post: posts[i],
+                onDeleted: () {},
+              ),
     );
   }
 }

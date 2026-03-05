@@ -25,4 +25,14 @@ class PostService {
   Future<void> deletePost(String postId) async {
     await ApiService.delete('/posts/$postId');
   }
+
+  Future<List<Map<String, dynamic>>> getComments(String postId) async {
+    final data = await ApiService.get('/posts/$postId/comments');
+    return List<Map<String, dynamic>>.from(data['data'] as List);
+  }
+
+  Future<Map<String, dynamic>> addComment(String postId, String content) async {
+    final data = await ApiService.post('/posts/$postId/comments', {'content': content});
+    return data['data'] as Map<String, dynamic>;
+  }
 }
