@@ -6,6 +6,8 @@ import '../../widgets/common/avatar_widget.dart';
 import '../../services/service_service.dart';
 import '../../services/service_request_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../config/routes.dart';
+import '../../services/message_service.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
   final ServiceModel service;
@@ -44,7 +46,25 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     return map[widget.service.cell] ?? AppTheme.primary;
   }
 
-  void _contactProvider() => _showHireSheet();
+  Future<void> _contactProvider() async {
+    final currentUser = context.read<AuthProvider>().currentUser;
+    if (currentUser == null) return;
+    final providerId = widget.service.provider.id;
+    if (currentUser.id == providerId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("That's your own service!"), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    try {
+      final conv = await MessageService().getOrCreateConversation(providerId, serviceId: widget.service.id);
+      if (mounted) Navigator.pushNamed(context, AppRoutes.chat, arguments: conv);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open chat'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
 
   void _showHireSheet() {
     final currentUser = context.read<AuthProvider>().currentUser;

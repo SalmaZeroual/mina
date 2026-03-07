@@ -17,8 +17,9 @@ class MessageService {
     return MessageModel.fromJson(data['data']);
   }
 
-  Future<ConversationModel> getOrCreateConversation(String userId) async {
-    final data = await ApiService.get('/messages/with/$userId');
+  Future<ConversationModel> getOrCreateConversation(String userId, {String? serviceId}) async {
+    final data = await ApiService.post('/messages/with/$userId',
+        serviceId != null ? {'service_id': serviceId} : {});
     return ConversationModel.fromJson(data['data']);
   }
 }

@@ -20,6 +20,12 @@ class MessagesProvider extends ChangeNotifier {
     ).toList();
   }
 
+  List<ConversationModel> get friendConversations =>
+      conversations.where((c) => !c.isService).toList();
+
+  List<ConversationModel> get serviceConversations =>
+      conversations.where((c) => c.isService).toList();
+
   List<MessageModel> get currentMessages => _currentMessages;
   bool get isLoading => _isLoading;
   int get totalUnread => _conversations.fold(0, (sum, c) => sum + c.unreadCount);

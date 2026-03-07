@@ -19,16 +19,19 @@ class MessagesScreen extends StatefulWidget {
 
 class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProviderStateMixin {
   final _searchCtrl = TextEditingController();
+  late TabController _tabs;
   bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+    _tabs.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) => context.read<MessagesProvider>().loadConversations());
   }
 
   @override
-  void dispose() { _searchCtrl.dispose(); super.dispose(); }
+  void dispose() { _searchCtrl.dispose(); _tabs.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -38,13 +41,14 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
       body: Consumer<MessagesProvider>(
         builder: (_, mp, __) {
           if (mp.isLoading && mp.conversations.isEmpty) return const LoadingWidget();
-          final convs = mp.conversations;
+          final friends  = mp.friendConversations;
+          final services = mp.serviceConversations;
 
           return Column(children: [
-            // Search bar (always visible)
+            // Search bar
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               color: Colors.white,
               child: _SearchBar(
                 controller: _searchCtrl,
@@ -61,96 +65,66 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
                 },
               ),
             ),
+            // Tab bar
+            Container(
+              color: Colors.white,
+              child: TabBar(
+                controller: _tabs,
+                labelColor: AppTheme.primary,
+                unselectedLabelColor: AppTheme.textSecondary,
+                indicatorColor: AppTheme.primary,
+                indicatorWeight: 2.5,
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                tabs: [
+                  Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('Friends'),
+                    if (friends.any((c) => c.unreadCount > 0)) ...[
+                      const SizedBox(width: 6),
+                      _UnreadBadge(friends.fold(0, (s, c) => s + c.unreadCount)),
+                    ],
+                  ])),
+                  Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('Services'),
+                    if (services.any((c) => c.unreadCount > 0)) ...[
+                      const SizedBox(width: 6),
+                      _UnreadBadge(services.fold(0, (s, c) => s + c.unreadCount)),
+                    ],
+                  ])),
+                ],
+              ),
+            ),
 
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: mp.loadConversations,
-                color: AppTheme.primary,
-                child: CustomScrollView(
-                  slivers: [
-                    // ── People from cell (when searching) ─────────────────
-                    if (_isSearching && mp.userResults.isNotEmpty) ...[
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                          child: Text('People in your cell',
-                              style: TextStyle(fontWeight: FontWeight.w700,
-                                  fontSize: 12, color: AppTheme.textSecondary,
-                                  letterSpacing: 0.5)),
-                        ),
-                      ),
-                      SliverList(delegate: SliverChildBuilderDelegate(
-                        (_, i) {
-                          final u = mp.userResults[i];
-                          return ListTile(
-                            contentPadding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                            leading: Stack(children: [
-                              AvatarWidget(initials: u.initials,
-                                  avatarUrl: u.avatarUrl, size: 46),
-                              if (u.isOnline) Positioned(right: 1, bottom: 1,
-                                child: Container(width: 10, height: 10,
-                                  decoration: BoxDecoration(
-                                      color: const Color(0xFF22C55E),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2)),
-                                )),
-                            ]),
-                            title: Text(u.fullName, style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14)),
-                            subtitle: u.title.isNotEmpty
-                                ? Text(u.title, style: const TextStyle(
-                                    fontSize: 12, color: Color(0xFF94A3B8)))
-                                : null,
-                            trailing: const Icon(Icons.send_rounded,
-                                size: 18, color: AppTheme.primary),
-                            onTap: () async {
-                              try {
-                                final conv = await MessageService()
-                                    .getOrCreateConversation(u.id);
-                                if (context.mounted) {
-                                  Navigator.pushNamed(context,
-                                      AppRoutes.chat, arguments: conv);
-                                }
-                              } catch (_) {}
-                            },
-                          );
-                        },
-                        childCount: mp.userResults.length,
-                      )),
-                      if (convs.isNotEmpty)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                            child: Text('Conversations',
-                                style: TextStyle(fontWeight: FontWeight.w700,
-                                    fontSize: 12, color: AppTheme.textSecondary,
-                                    letterSpacing: 0.5)),
-                          ),
-                        ),
-                    ],
-                    // ── Conversations ─────────────────────────────────────
-                    if (convs.isEmpty && !_isSearching)
-                      SliverFillRemaining(
-                        child: _EmptyState(
-                            isSearching: _isSearching,
-                            query: _searchCtrl.text),
-                      )
-                    else if (convs.isEmpty && _isSearching && mp.userResults.isEmpty)
-                      SliverFillRemaining(
-                        child: _EmptyState(
-                            isSearching: true, query: _searchCtrl.text),
-                      )
-                    else
-                      SliverList(delegate: SliverChildBuilderDelegate(
-                        (_, i) => _ConversationTile(
-                          conversation: convs[i],
-                          onDelete: () => _confirmDelete(context, mp, convs[i]),
-                        ),
-                        childCount: convs.length,
-                      )),
-                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                  ],
-                ),
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  // ── Friends tab ──────────────────────────────────────
+                  _ConvsTab(
+                    convs: friends,
+                    isSearching: _isSearching,
+                    searchQuery: _searchCtrl.text,
+                    userResults: mp.userResults,
+                    onDelete: (c) => _confirmDelete(context, mp, c),
+                    onRefresh: mp.loadConversations,
+                    emptyIcon: Icons.people_outline,
+                    emptyTitle: 'No conversations yet',
+                    emptySub: 'Start a conversation from someone\'s profile',
+                  ),
+                  // ── Services tab ─────────────────────────────────────
+                  _ConvsTab(
+                    convs: services,
+                    isSearching: _isSearching,
+                    searchQuery: _searchCtrl.text,
+                    userResults: const [],
+                    onDelete: (c) => _confirmDelete(context, mp, c),
+                    onRefresh: mp.loadConversations,
+                    emptyIcon: Icons.handyman_outlined,
+                    emptyTitle: 'No service conversations',
+                    emptySub: 'Hire a service and accept will create a conversation here',
+                    showServiceBadge: true,
+                  ),
+                ],
               ),
             ),
           ]);
@@ -258,7 +232,8 @@ class _MessagesScreenState extends State<MessagesScreen> with SingleTickerProvid
 class _ConversationTile extends StatelessWidget {
   final ConversationModel conversation;
   final VoidCallback onDelete;
-  const _ConversationTile({required this.conversation, required this.onDelete});
+  final bool showServiceBadge;
+  const _ConversationTile({required this.conversation, required this.onDelete, this.showServiceBadge = false});
 
   @override
   Widget build(BuildContext context) {
@@ -440,7 +415,16 @@ class _SearchBar extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final bool isSearching;
   final String query;
-  const _EmptyState({required this.isSearching, required this.query});
+  final IconData icon;
+  final String title;
+  final String sub;
+  const _EmptyState({
+    required this.isSearching,
+    required this.query,
+    this.icon = Icons.chat_bubble_outline_rounded,
+    this.title = 'No conversations yet',
+    this.sub = 'Start a conversation from someone\'s profile',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -448,18 +432,17 @@ class _EmptyState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text(isSearching ? '🔍' : '💬', style: const TextStyle(fontSize: 60)),
-          const SizedBox(height: 20),
+          Icon(isSearching ? Icons.search_rounded : icon,
+              size: 56, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
           Text(
-            isSearching ? 'No results for "$query"' : 'No conversations yet',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            isSearching ? 'No results for "$query"' : title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
-            isSearching
-                ? 'Try a different name or keyword'
-                : 'Connect with professionals in your cell.\nStart a conversation from someone\'s profile.',
+            isSearching ? 'Try a different name or keyword' : sub,
             style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14, height: 1.5),
             textAlign: TextAlign.center,
           ),
@@ -647,4 +630,122 @@ class _NewMessageSheetState extends State<_NewMessageSheet> {
       ]),
     );
   }
+}
+
+// ─── Unread badge ─────────────────────────────────────────────────────────────
+class _UnreadBadge extends StatelessWidget {
+  final int count;
+  const _UnreadBadge(this.count);
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+        color: AppTheme.primary, borderRadius: BorderRadius.circular(10)),
+    child: Text('$count',
+        style: const TextStyle(color: Colors.white,
+            fontSize: 10, fontWeight: FontWeight.w700)),
+  );
+}
+
+// ─── Conversations tab (reusable for friends + services) ─────────────────────
+class _ConvsTab extends StatelessWidget {
+  final List<ConversationModel> convs;
+  final List<UserModel> userResults;
+  final bool isSearching;
+  final String searchQuery;
+  final ValueChanged<ConversationModel> onDelete;
+  final Future<void> Function() onRefresh;
+  final IconData emptyIcon;
+  final String emptyTitle, emptySub;
+  final bool showServiceBadge;
+
+  const _ConvsTab({
+    required this.convs, required this.userResults,
+    required this.isSearching, required this.searchQuery,
+    required this.onDelete, required this.onRefresh,
+    required this.emptyIcon, required this.emptyTitle, required this.emptySub,
+    this.showServiceBadge = false,
+  });
+
+  List<Widget> _buildSlivers(BuildContext context) {
+    final slivers = <Widget>[];
+
+    // People search results (friends tab only)
+    if (isSearching && userResults.isNotEmpty) {
+      slivers.add(SliverToBoxAdapter(child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+        child: const Text('People in your cell',
+            style: TextStyle(fontWeight: FontWeight.w700,
+                fontSize: 12, color: AppTheme.textSecondary,
+                letterSpacing: 0.5)),
+      )));
+      slivers.add(SliverList(delegate: SliverChildBuilderDelegate(
+        (_, i) {
+          final u = userResults[i];
+          return ListTile(
+            contentPadding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            leading: Stack(children: [
+              AvatarWidget(initials: u.initials, avatarUrl: u.avatarUrl, size: 46),
+              if (u.isOnline) Positioned(right: 1, bottom: 1,
+                child: Container(width: 10, height: 10,
+                  decoration: BoxDecoration(color: const Color(0xFF22C55E),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2)))),
+            ]),
+            title: Text(u.fullName,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            subtitle: u.title.isNotEmpty
+                ? Text(u.title, style: const TextStyle(
+                    fontSize: 12, color: Color(0xFF94A3B8)))
+                : null,
+            trailing: const Icon(Icons.send_rounded,
+                size: 18, color: AppTheme.primary),
+            onTap: () async {
+              try {
+                final conv = await MessageService().getOrCreateConversation(u.id);
+                if (context.mounted) {
+                  Navigator.pushNamed(context, AppRoutes.chat, arguments: conv);
+                }
+              } catch (_) {}
+            },
+          );
+        },
+        childCount: userResults.length,
+      )));
+      if (convs.isNotEmpty) {
+        slivers.add(SliverToBoxAdapter(child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+          child: const Text('Conversations',
+              style: TextStyle(fontWeight: FontWeight.w700,
+                  fontSize: 12, color: AppTheme.textSecondary,
+                  letterSpacing: 0.5)),
+        )));
+      }
+    }
+
+    // Conversations list
+    if (convs.isEmpty && !(isSearching && userResults.isNotEmpty)) {
+      slivers.add(SliverFillRemaining(child: _EmptyState(
+          isSearching: isSearching, query: searchQuery,
+          icon: emptyIcon, title: emptyTitle, sub: emptySub)));
+    } else {
+      slivers.add(SliverList(delegate: SliverChildBuilderDelegate(
+        (_, i) => _ConversationTile(
+            conversation: convs[i],
+            showServiceBadge: showServiceBadge,
+            onDelete: () => onDelete(convs[i])),
+        childCount: convs.length,
+      )));
+    }
+
+    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 80)));
+    return slivers;
+  }
+
+  @override
+  Widget build(BuildContext context) => RefreshIndicator(
+    onRefresh: onRefresh,
+    color: AppTheme.primary,
+    child: CustomScrollView(slivers: _buildSlivers(context)),
+  );
 }

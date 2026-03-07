@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../models/service_request_model.dart';
 import '../../models/message_model.dart';
@@ -383,14 +384,15 @@ class _ReceivedRequestCardState extends State<_ReceivedRequestCard> {
 
   void _openChat(String convId) async {
     try {
-      final data = await ApiService.get('/messages/conversations');
-      final convJson = (data['data'] as List)
-          .firstWhere((c) => c['id'] == convId, orElse: () => null);
-      if (convJson != null && mounted) {
+      final data = await ApiService.get('/messages/conv/$convId');
+      if (mounted) {
         Navigator.pushNamed(context, AppRoutes.chat,
-            arguments: ConversationModel.fromJson(convJson));
+            arguments: ConversationModel.fromJson(
+                data['data'] as Map<String, dynamic>));
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) _snack('Could not open chat', isError: true);
+    }
   }
 
   void _snack(String msg, {bool isError = false}) =>
@@ -598,12 +600,11 @@ class _SentRequestCardState extends State<_SentRequestCard> {
 
   void _openChat(String convId) async {
     try {
-      final data = await ApiService.get('/messages/conversations');
-      final convJson = (data['data'] as List)
-          .firstWhere((c) => c['id'] == convId, orElse: () => null);
-      if (convJson != null && mounted) {
+      final data = await ApiService.get('/messages/conv/$convId');
+      if (mounted) {
         Navigator.pushNamed(context, AppRoutes.chat,
-            arguments: ConversationModel.fromJson(convJson));
+            arguments: ConversationModel.fromJson(
+                data['data'] as Map<String, dynamic>));
       }
     } catch (_) {}
   }

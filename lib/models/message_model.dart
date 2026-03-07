@@ -5,6 +5,8 @@ class ConversationModel {
   final DateTime lastMessageAt;
   final int unreadCount;
   final bool isTyping;
+  final String type; // 'friend' | 'service'
+  final String? serviceTitle;
 
   ConversationModel({
     required this.id,
@@ -13,7 +15,11 @@ class ConversationModel {
     required this.lastMessageAt,
     this.unreadCount = 0,
     this.isTyping = false,
+    this.type = 'friend',
+    this.serviceTitle,
   });
+
+  bool get isService => type == 'service';
 
   String get timeAgo {
     final diff = DateTime.now().difference(lastMessageAt);
@@ -32,6 +38,8 @@ class ConversationModel {
       lastMessage: json['last_message'] ?? '',
       lastMessageAt: DateTime.tryParse(json['last_message_at'] ?? '') ?? DateTime.now(),
       unreadCount: json['unread_count'] ?? 0,
+      type: json['type'] as String? ?? 'friend',
+      serviceTitle: json['service_title'] as String?,
     );
   }
 }
