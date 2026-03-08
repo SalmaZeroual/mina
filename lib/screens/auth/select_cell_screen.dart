@@ -18,6 +18,12 @@ class _SelectCellScreenState extends State<SelectCellScreen> {
   final _searchCtrl = TextEditingController();
   List<CellModel> _cells = [];
   bool _loadingCells = true;
+  bool _showRequestForm = false;
+  bool _submittingRequest = false;
+  String? _requestSuccess;
+  final _reqNameCtrl = TextEditingController();
+  final _reqDescCtrl = TextEditingController();
+  final _reqReasonCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -40,6 +46,41 @@ class _SelectCellScreenState extends State<SelectCellScreen> {
   List<CellModel> get _filtered => _cells
       .where((c) => c.name.toLowerCase().contains(_searchQuery.toLowerCase()))
       .toList();
+
+  Future<void> _submitRequest() async {
+    final name = _reqNameCtrl.text.trim();
+    if (name.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cell name must be at least 2 characters'),
+            behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    setState(() => _submittingRequest = true);
+    try {
+      await ApiService.post('/cell-requests', {
+        'cell_name': name,
+        'description': _reqDescCtrl.text.trim(),
+        'reason': _reqReasonCtrl.text.trim(),
+      });
+      if (mounted) setState(() {
+        _requestSuccess = name;
+        _submittingRequest = false;
+        _showRequestForm = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submittingRequest = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _confirm() async {
     if (_selectedCellId == null) return;
@@ -124,6 +165,100 @@ class _SelectCellScreenState extends State<SelectCellScreen> {
                   ),
                 ),
               ],
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 12),
+              // ── Request new cell ────────────────────────────────
+              if (_requestSuccess != null)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFE6FAF0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.3))),
+                  child: Column(children: [
+                    const Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 32),
+                    const SizedBox(height: 8),
+                    Text('Request sent for "${_requestSuccess}"!',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(height: 4),
+                    const Text('You will receive an email once the admin reviews your request.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  ]),
+                )
+              else if (!_showRequestForm)
+                GestureDetector(
+                  onTap: () => setState(() => _showRequestForm = true),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                        border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.add_circle_outline, color: AppTheme.primary, size: 18),
+                      const SizedBox(width: 8),
+                      Text('Cell doesn\'t exist yet — Request it',
+                          style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                    ]),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: AppTheme.inputFill,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.primary.withOpacity(0.2))),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      const Text('Request a New Cell', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      GestureDetector(
+                        onTap: () => setState(() => _showRequestForm = false),
+                        child: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
+                      ),
+                    ]),
+                    const SizedBox(height: 4),
+                    const Text('The admin will review your request and notify you by email.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _reqNameCtrl,
+                      decoration: const InputDecoration(
+                          hintText: 'Cell name (e.g. "AI Research")',
+                          labelText: 'Cell Name *'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _reqDescCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                          hintText: 'Brief description…',
+                          labelText: 'Description'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _reqReasonCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                          hintText: 'Why should this cell be created?',
+                          labelText: 'Reason'),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: _submittingRequest ? null : _submitRequest,
+                        child: _submittingRequest
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Submit Request'),
+                      ),
+                    ),
+                  ]),
+                ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
