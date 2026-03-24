@@ -44,6 +44,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     setState(() => _loadingGroup = true);
     try {
       final group = await _service.getGroup(widget.groupId);
+      debugPrint('GROUP DEBUG: isAdmin=${group.isAdmin} isMember=${group.isMember}');
       List<JoinRequestModel> requests = [];
       List<GroupMemberModel> members = [];
       if (group.isAdmin) {
@@ -140,14 +141,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 178,
             pinned: true,
+            automaticallyImplyLeading: false,
             backgroundColor: _cellColor(g.cell),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-            actions: [
+            titleSpacing: 0,
+            title: Row(children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const Spacer(),
               if (g.isAdmin && _requests.isNotEmpty)
                 IconButton(
                   icon: Stack(children: [
@@ -178,8 +182,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   ],
                   onSelected: (v) { if (v == 'leave') _leave(); },
                 ),
-            ],
+            ]),
             flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.pin,
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -188,20 +193,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   ),
                 ),
                 child: SafeArea(child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(20, 50, 20, 8),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end, children: [
                     Container(
-                      width: 56, height: 56,
+                      width: 52, height: 52,
                       decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(14)),
                       child: Center(child: Text(_groupEmoji(g.name),
-                          style: const TextStyle(fontSize: 26))),
+                          style: const TextStyle(fontSize: 24))),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(g.name, style: const TextStyle(
-                        color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                        color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                     Row(children: [
                       if (g.cell != null)
                         Text(g.cell!, style: TextStyle(
@@ -213,7 +218,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                           decoration: BoxDecoration(
                               color: Colors.amber.withOpacity(0.9),
                               borderRadius: BorderRadius.circular(20)),
-                          child: Text('\$${g.price.toInt()}/mo',
+                          child: Text("\$${g.price.toInt()}/mo",
                               style: const TextStyle(color: Colors.black87,
                                   fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
@@ -292,6 +297,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         ],
         body: g.isMember
             ? TabBarView(
+                physics: const NeverScrollableScrollPhysics(),
                 controller: _tabs,
                 children: [
                   // ── Discussions tab ─────────────────────────────────────────
@@ -420,7 +426,7 @@ class _DiscussionsTab extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
         children: [
           // Composer (admin only)
-          if (group.isAdmin) _PostComposer(group: group, onCreated: onPostCreated),
+          if (group.isMember) _PostComposer(group: group, onCreated: onPostCreated),
 
           if (loading)
             const Center(child: Padding(

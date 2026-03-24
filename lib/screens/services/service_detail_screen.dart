@@ -5,6 +5,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/common/avatar_widget.dart';
 import '../../services/service_service.dart';
 import '../../services/service_request_service.dart';
+import '../../models/message_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/routes.dart';
 import '../../services/message_service.dart';
@@ -185,8 +186,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                           width: 140,
                           height: 46,
                           child: ElevatedButton.icon(
-                            onPressed: _contactProvider,
-                            icon: const Icon(Icons.chat_bubble_outline, size: 17),
+                            onPressed: _showHireSheet,
+                            icon: const Icon(Icons.handshake_outlined, size: 17),
                             label: const Text('Hire Now', style: TextStyle(fontWeight: FontWeight.w700)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _cellColor,

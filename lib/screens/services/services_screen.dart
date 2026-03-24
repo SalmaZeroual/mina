@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/services_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/service_model.dart';
 import '../../services/service_service.dart';
 import '../../widgets/common/bottom_nav_bar.dart';
@@ -69,22 +70,34 @@ class _ServicesScreenState extends State<ServicesScreen>
               ),
             ],
             bottom: PreferredSize(
-              preferredSize: Size.fromHeight(_tabs.index == 0 ? 106 : 48),
-              child: Column(children: [
-                // Search + categories only on Discover tab
-                if (_tabs.index == 0) ...[
+              preferredSize: const Size.fromHeight(154),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: _SearchBar(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                    child: TextField(
                       controller: _searchCtrl,
                       onChanged: context.read<ServicesProvider>().search,
+                      decoration: InputDecoration(
+                        hintText: 'Search services or skills...',
+                        hintStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                        prefixIcon: const Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F6FA),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
                     ),
                   ),
                   SizedBox(
-                    height: 46,
+                    height: 40,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                       itemCount: _categories.length,
                       itemBuilder: (_, i) {
                         final sel = _categories[i] == _selectedCategory;
@@ -109,19 +122,19 @@ class _ServicesScreenState extends State<ServicesScreen>
                       },
                     ),
                   ),
+                  TabBar(
+                    controller: _tabs,
+                    labelColor: AppTheme.primary,
+                    unselectedLabelColor: AppTheme.textSecondary,
+                    indicatorColor: AppTheme.primary,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    tabs: const [
+                      Tab(text: 'Discover'),
+                      Tab(text: 'My Services'),
+                    ],
+                  ),
                 ],
-                TabBar(
-                  controller: _tabs,
-                  labelColor: AppTheme.primary,
-                  unselectedLabelColor: AppTheme.textSecondary,
-                  indicatorColor: AppTheme.primary,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  tabs: const [
-                    Tab(text: 'Discover'),
-                    Tab(text: 'My Services'),
-                  ],
-                ),
-              ]),
+              ),
             ),
           ),
         ],
@@ -199,6 +212,93 @@ class _ServicesScreenState extends State<ServicesScreen>
     );
   }
 }
+
+// ── Search + Filter persistent header delegate ────────────────────────────────
+class _SearchFilterDelegate extends SliverPersistentHeaderDelegate {
+  final TextEditingController searchCtrl;
+  final List<String> categories;
+  final String selectedCategory;
+  final ValueChanged<String> onSearch;
+  final ValueChanged<String> onCategoryTap;
+
+  const _SearchFilterDelegate({
+    required this.searchCtrl,
+    required this.categories,
+    required this.selectedCategory,
+    required this.onSearch,
+    required this.onCategoryTap,
+  });
+
+  @override
+  double get minExtent => 106;
+  @override
+  double get maxExtent => 106;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: TextField(
+              controller: searchCtrl,
+              onChanged: onSearch,
+              decoration: InputDecoration(
+                hintText: 'Search services or skills...',
+                hintStyle: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                prefixIcon: const Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+                filled: true,
+                fillColor: const Color(0xFFF5F6FA),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 38,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              itemCount: categories.length,
+              itemBuilder: (_, i) {
+                final sel = categories[i] == selectedCategory;
+                return GestureDetector(
+                  onTap: () => onCategoryTap(categories[i]),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: sel ? AppTheme.primary : const Color(0xFFF0F1F5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(categories[i],
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: sel ? Colors.white : AppTheme.textSecondary)),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SearchFilterDelegate old) =>
+      old.selectedCategory != selectedCategory;
+}
+
 
 // ── Search bar ────────────────────────────────────────────────────────────────
 class _SearchBar extends StatelessWidget {

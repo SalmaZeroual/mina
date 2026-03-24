@@ -5,7 +5,7 @@ class ConversationModel {
   final DateTime lastMessageAt;
   final int unreadCount;
   final bool isTyping;
-  final String type; // 'friend' | 'service'
+  final String type;
   final String? serviceTitle;
 
   ConversationModel({
@@ -40,6 +40,25 @@ class ConversationModel {
       unreadCount: json['unread_count'] ?? 0,
       type: json['type'] as String? ?? 'friend',
       serviceTitle: json['service_title'] as String?,
+      isTyping: json['is_typing'] == true,
+    );
+  }
+
+  ConversationModel copyWith({
+    String? lastMessage,
+    DateTime? lastMessageAt,
+    int? unreadCount,
+    bool? isTyping,
+  }) {
+    return ConversationModel(
+      id: id,
+      participant: participant,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
+      unreadCount: unreadCount ?? this.unreadCount,
+      isTyping: isTyping ?? this.isTyping,
+      type: type,
+      serviceTitle: serviceTitle,
     );
   }
 }
@@ -71,7 +90,7 @@ class ParticipantModel {
       avatarUrl: json['avatar_url'],
       title: json['title'] ?? '',
       cell: json['cell'],
-      isOnline: json['is_online'] ?? false,
+      isOnline: json['is_online'] == true || json['is_online'] == 1,
     );
   }
 }
@@ -80,19 +99,33 @@ class MessageModel {
   final String id;
   final String senderId;
   final String senderName;
+  final String? senderAvatar;
   final String content;
+  final String? mediaUrl;
+  final MessageType type;
+  final String? replyToId;
+  final String? replyToContent;
+  final String? replyToSender;
+  final Map<String, List<String>> reactions; // emoji -> [userId, ...]
   final DateTime sentAt;
   final bool isRead;
-  final MessageType type;
+  final bool isDeleted;
 
   MessageModel({
     required this.id,
     required this.senderId,
     this.senderName = '',
+    this.senderAvatar,
     required this.content,
+    this.mediaUrl,
+    this.type = MessageType.text,
+    this.replyToId,
+    this.replyToContent,
+    this.replyToSender,
+    this.reactions = const {},
     required this.sentAt,
     this.isRead = false,
-    this.type = MessageType.text,
+    this.isDeleted = false,
   });
 
   String get timeLabel {
@@ -105,15 +138,53 @@ class MessageModel {
   }
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
+    // Parse reactions: { "👍": ["uid1", "uid2"] }
+    Map<String, List<String>> reactions = {};
+    final rawReactions = json['reactions'];
+    if (rawReactions is Map) {
+      rawReactions.forEach((emoji, users) {
+        if (users is List) {
+          reactions[emoji as String] = users.map((u) => u.toString()).toList();
+        }
+      });
+    }
+
     return MessageModel(
       id: json['id'],
       senderId: json['sender']?['id'] ?? '',
       senderName: json['sender']?['full_name'] ?? '',
-      content: json['content'],
+      senderAvatar: json['sender']?['avatar_url'],
+      content: json['content'] ?? '',
+      mediaUrl: json['media_url'],
+      type: json['message_type'] == 'image' ? MessageType.image : MessageType.text,
+      replyToId: json['reply_to_id'],
+      replyToContent: json['reply_to_content'],
+      replyToSender: json['reply_to_sender'],
+      reactions: reactions,
       sentAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      isRead: json['is_read'] ?? false,
+      isRead: json['is_read'] == true || json['is_read'] == 1,
+      isDeleted: json['is_deleted'] == true || json['is_deleted'] == 1,
+    );
+  }
+
+  MessageModel copyWith({bool? isRead, Map<String, List<String>>? reactions}) {
+    return MessageModel(
+      id: id,
+      senderId: senderId,
+      senderName: senderName,
+      senderAvatar: senderAvatar,
+      content: content,
+      mediaUrl: mediaUrl,
+      type: type,
+      replyToId: replyToId,
+      replyToContent: replyToContent,
+      replyToSender: replyToSender,
+      reactions: reactions ?? this.reactions,
+      sentAt: sentAt,
+      isRead: isRead ?? this.isRead,
+      isDeleted: isDeleted,
     );
   }
 }
 
-enum MessageType { text, image, file }
+enum MessageType { text, image }
